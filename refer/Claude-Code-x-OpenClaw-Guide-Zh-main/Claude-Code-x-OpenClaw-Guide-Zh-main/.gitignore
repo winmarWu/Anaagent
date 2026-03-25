@@ -1,0 +1,20 @@
+# 临时文件和草稿
+.drafts/
+*.tmp
+*.temp
+
+# 计划和报告文件
+*_plan.md
+*progress*.md
+*findings*.md
+*交付报告*.md
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

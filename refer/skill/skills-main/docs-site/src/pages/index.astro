@@ -1,0 +1,802 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { SkillsSection } from '../components/SkillsSection';
+import AgentChip from '../components/AgentChip.astro';
+import MCPChip from '../components/MCPChip.astro';
+import HookCard from '../components/HookCard.astro';
+import skills from '../data/skills.json';
+import agents from '../data/agents.json';
+import mcpServers from '../data/mcp-servers.json';
+import hooks from '../data/hooks.json';
+---
+
+<Layout>
+  <div class="container">
+    <!-- Skills Section with Filters -->
+    <SkillsSection client:load skills={skills} />
+
+    <!-- Plugins Section -->
+    <section id="plugins" class="section">
+      <h2 class="section-title">
+        <span class="section-dot"></span>
+        Plugins
+      </h2>
+      <div class="plugins-grid">
+        <!-- GitHub Copilot for Azure -->
+        <a href="https://github.com/microsoft/GitHub-Copilot-for-Azure" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">🔌</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              GitHub Copilot for Azure
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Extensions for VS Code, Visual Studio, and Claude Code — ask questions about Azure services, get help with management and development tasks</p>
+          </div>
+        </a>
+
+        <!-- Awesome Copilot -->
+        <a href="https://github.com/github/awesome-copilot" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">⭐</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              Awesome Copilot
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Curated list of skills, prompts, plugins, cookbooks, custom agents and more</p>
+          </div>
+        </a>
+
+        <!-- Deep Wiki -->
+        <button type="button" class="doc-card plugin-card-btn" onclick="document.getElementById('deep-wiki-modal').showModal()">
+          <span class="doc-icon">📚</span>
+          <div class="doc-content">
+            <h3 class="doc-title">Deep Wiki</h3>
+            <p class="doc-desc">AI-powered wiki generator — Mermaid diagrams, source citations, onboarding guides, AGENTS.md, and llms.txt for any codebase</p>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Deep Wiki Modal -->
+    <dialog id="deep-wiki-modal" class="plugin-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title-row">
+            <span class="modal-icon">📚</span>
+            <h2 class="modal-title">Deep Wiki</h2>
+            <span class="modal-badge">v2.0.0</span>
+          </div>
+          <button type="button" class="modal-close" onclick="document.getElementById('deep-wiki-modal').close()" aria-label="Close">✕</button>
+        </div>
+        <p class="modal-desc">AI-powered wiki generator for code repositories. Generates comprehensive, Mermaid-rich documentation with source-linked citations, onboarding guides, AGENTS.md, llms.txt, and dark-mode VitePress sites.</p>
+
+        <div class="modal-section">
+          <h3 class="modal-section-title">Install in Copilot CLI</h3>
+          <div class="modal-code-block">
+            <code>/plugin marketplace add microsoft/skills</code>
+            <button type="button" class="copy-btn" onclick="navigator.clipboard.writeText('/plugin marketplace add microsoft/skills');this.textContent='✓';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy">Copy</button>
+          </div>
+          <div class="modal-code-block">
+            <code>/plugin install deep-wiki@skills</code>
+            <button type="button" class="copy-btn" onclick="navigator.clipboard.writeText('/plugin install deep-wiki@skills');this.textContent='✓';setTimeout(()=>this.textContent='Copy',1500)" aria-label="Copy">Copy</button>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <h3 class="modal-section-title">Commands</h3>
+          <div class="modal-table">
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:generate</code>
+              <span>Full wiki — catalogue + all pages</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:crisp</code>
+              <span>Fast wiki — concise, no build step</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:catalogue</code>
+              <span>Hierarchical structure as JSON</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:page</code>
+              <span>Single page with Mermaid diagrams</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:research</code>
+              <span>Multi-turn deep investigation</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:changelog</code>
+              <span>Structured changelog from git</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:ask</code>
+              <span>Q&A grounded in source code</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:onboard</code>
+              <span>4 audience-tailored onboarding guides</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:agents</code>
+              <span>Generate Agents.md for key folders</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:llms</code>
+              <span>Generate llms.txt for LLM-friendly access</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:build</code>
+              <span>Package as VitePress dark-theme site</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:ado</code>
+              <span>Export to Azure DevOps Wiki format</span>
+            </div>
+            <div class="modal-row">
+              <code class="modal-cmd">/deep-wiki:deploy</code>
+              <span>Deploy wiki to GitHub Pages</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="modal-share-btn" id="deep-wiki-share-btn" aria-label="Share">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            Share
+          </button>
+          <a href="https://github.com/microsoft/skills/tree/main/.github/plugins/deep-wiki" target="_blank" rel="noopener" class="modal-link">
+            View on GitHub
+            <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Hooks Section -->
+    <section id="hooks" class="section">
+      <h2 class="section-title">
+        <span class="section-dot"></span>
+        Hooks
+      </h2>
+      <p class="section-subtitle">Lifecycle hooks for coding agent sessions — install by copying to <code>.github/hooks/</code> in your repo</p>
+      <div class="hooks-grid">
+        {hooks.map((hook) => (
+          <HookCard
+            id={hook.id}
+            name={hook.name}
+            emoji={hook.emoji}
+            description={hook.description}
+            featured={hook.featured}
+            tags={hook.tags}
+            path={hook.path}
+          />
+        ))}
+      </div>
+      <p class="hooks-more">More hooks available in <a href="https://github.com/github/awesome-copilot/tree/main/hooks" target="_blank" rel="noopener">awesome-copilot<svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" /></svg></a></p>
+    </section>
+
+    <!-- MCP & Agents Section - Compact -->
+    <section id="agents-mcp" class="section section-compact">
+      <div class="compact-row">
+        <h3 class="compact-title">
+          <span class="section-dot"></span>
+          MCP Servers
+        </h3>
+        <div class="docs-grid">
+          <a href="https://github.com/microsoft/mcp" target="_blank" rel="noopener noreferrer" class="doc-card">
+            <span class="doc-icon">🔗</span>
+            <div class="doc-content">
+              <h3 class="doc-title">
+                Microsoft MCP Catalog
+                <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                </svg>
+              </h3>
+              <p class="doc-desc">Official Microsoft MCP server implementations for AI-powered data access</p>
+            </div>
+          </a>
+          <a href="https://github.com/microsoft/skills/blob/main/.vscode/mcp.json" target="_blank" rel="noopener noreferrer" class="doc-card">
+            <span class="doc-icon">⚙️</span>
+            <div class="doc-content">
+              <h3 class="doc-title">
+                Sample Configs
+                <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                </svg>
+              </h3>
+              <p class="doc-desc">Ready-to-use configs for Microsoft Docs, Context7, GitHub, Playwright</p>
+            </div>
+          </a>
+        </div>
+      </div>
+      
+      <div class="compact-row">
+        <h3 class="compact-title">
+          <span class="section-dot"></span>
+          Custom Agents
+        </h3>
+        <div class="chips-container">
+          {agents.map((agent) => (
+            <AgentChip
+              emoji={agent.emoji}
+              name={agent.name}
+              description={agent.description}
+              skills={agent.skills}
+              file={agent.file}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation" class="section">
+      <h2 class="section-title">
+        <span class="section-dot"></span>
+        Documentation
+      </h2>
+      <div class="docs-grid">
+        <!-- llms.txt -->
+        <a href="/skills/llms.txt" class="doc-card">
+          <span class="doc-icon">📄</span>
+          <div class="doc-content">
+            <h3 class="doc-title">llms.txt</h3>
+            <p class="doc-desc">LLM-friendly documentation index</p>
+          </div>
+        </a>
+
+        <!-- llms-full.txt -->
+        <a href="/skills/llms-full.txt" class="doc-card">
+          <span class="doc-icon">📋</span>
+          <div class="doc-content">
+            <h3 class="doc-title">llms-full.txt</h3>
+            <p class="doc-desc">Complete documentation with full content</p>
+          </div>
+        </a>
+
+        <!-- Context7 -->
+        <a href="https://context7.com/microsoft/skills?tab=skills" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">7️⃣</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              Browse on Context7
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Indexed documentation with semantic search</p>
+          </div>
+        </a>
+
+        <!-- Agents.md -->
+        <a href="https://github.com/microsoft/skills/blob/main/Agents.md" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">🤖</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              Agents.md Template
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Configure agent behavior in your projects</p>
+          </div>
+        </a>
+
+        <!-- VS Code Agent Skills -->
+        <a href="https://code.visualstudio.com/docs/copilot/customization/agent-skills" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">💻</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              Copilot Agent Skills in VS Code
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Learn how GitHub Copilot in VS Code supports agent skills</p>
+          </div>
+        </a>
+
+        <!-- Blog Post -->
+        <a href="https://devblogs.microsoft.com/all-things-azure/context-driven-development-agent-skills-for-microsoft-foundry-and-azure/" target="_blank" rel="noopener" class="doc-card">
+          <span class="doc-icon">📝</span>
+          <div class="doc-content">
+            <h3 class="doc-title">
+              Blog: Context-Driven Development
+              <svg class="external-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+              </svg>
+            </h3>
+            <p class="doc-desc">Learn about Agent Skills for Microsoft Foundry</p>
+          </div>
+        </a>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+
+
+<style>
+  /* Section styles */
+  .section {
+    padding: var(--space-2xl) 0;
+  }
+
+  .section-compact {
+    padding: var(--space-xl) 0;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    margin-bottom: var(--space-xl);
+  }
+
+  .section-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .section-placeholder {
+    color: var(--text-muted);
+    font-size: var(--text-base);
+    font-style: italic;
+    padding: var(--space-xl) 0;
+  }
+
+  /* Compact row layout for Agents & MCP */
+  .compact-row {
+    margin-bottom: var(--space-lg);
+  }
+
+  .compact-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .compact-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-md) 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .compact-title .section-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  /* Documentation Section */
+  .docs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-lg);
+  }
+
+  @media (max-width: 768px) {
+    .docs-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Plugins Section */
+  .plugins-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+  }
+
+  @media (max-width: 768px) {
+    .plugins-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Hooks Section */
+  .section-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: calc(-1 * var(--space-md)) 0 var(--space-lg) 0;
+    line-height: 1.5;
+  }
+
+  .section-subtitle code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: var(--text-xs);
+    color: var(--accent);
+    background: rgba(6, 182, 212, 0.08);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+  }
+
+  .hooks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+  }
+
+  @media (max-width: 1024px) {
+    .hooks-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hooks-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .hooks-more {
+    margin-top: var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    text-align: right;
+  }
+
+  .hooks-more a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color var(--transition-fast);
+  }
+
+  .hooks-more a:hover {
+    color: var(--accent);
+  }
+
+  .hooks-more .external-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .doc-card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: all var(--transition-base);
+    min-height: 100px;
+  }
+
+  .doc-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+    box-shadow: 0 0 24px var(--accent-glow);
+    transform: translateY(-2px);
+  }
+
+  .doc-icon {
+    font-size: var(--text-2xl);
+    flex-shrink: 0;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .doc-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
+  .doc-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .doc-desc {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .doc-secondary {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin-top: var(--space-xs);
+  }
+
+  .doc-link-inline {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .doc-link-inline:hover {
+    color: var(--accent-hover);
+  }
+
+  .external-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .doc-card:hover .external-icon {
+    opacity: 1;
+  }
+
+  /* Plugin card as button */
+  .plugin-card-btn {
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    border: 1px solid var(--border-primary);
+  }
+
+  /* Modal */
+  .plugin-modal {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius-xl);
+    padding: 0;
+    max-width: 560px;
+    width: 90vw;
+    inset: 0;
+    margin: auto;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.6), 0 0 30px var(--accent-glow);
+  }
+
+  .plugin-modal::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-content {
+    padding: var(--space-xl);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-md);
+  }
+
+  .modal-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .modal-icon {
+    font-size: var(--text-2xl);
+  }
+
+  .modal-title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .modal-badge {
+    font-size: var(--text-xs);
+    color: var(--accent);
+    background: rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: var(--text-lg);
+    cursor: pointer;
+    padding: var(--space-xs);
+    line-height: 1;
+    border-radius: var(--radius-sm);
+  }
+
+  .modal-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-card-hover);
+  }
+
+  .modal-desc {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    margin: 0 0 var(--space-lg) 0;
+  }
+
+  .modal-section {
+    margin-bottom: var(--space-lg);
+  }
+
+  .modal-section-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-sm) 0;
+  }
+
+  .modal-code-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0a0a0a;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-xs);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: var(--text-sm);
+  }
+
+  .modal-code-block code {
+    color: var(--accent);
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    padding: 2px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+
+  .copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .modal-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .modal-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xs) 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+
+  .modal-cmd {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: var(--text-xs);
+    color: var(--accent);
+    background: rgba(6, 182, 212, 0.08);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+
+  .modal-footer {
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+  }
+
+  .modal-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+
+  .modal-link:hover {
+    color: var(--accent);
+  }
+
+  .modal-share-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .modal-share-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+</style>
+
+<script>
+  // Deep Wiki share button
+  document.getElementById('deep-wiki-share-btn')?.addEventListener('click', function() {
+    const url = `${window.location.origin}${window.location.pathname}#plugin=deep-wiki`;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = this;
+      btn.textContent = '✓ Copied!';
+      btn.style.color = '#22c55e';
+      btn.style.borderColor = '#22c55e';
+      setTimeout(() => {
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg> Share';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  });
+
+  // Hash routing for deep-wiki plugin
+  function checkPluginHash() {
+    const hash = window.location.hash;
+    if (hash === '#plugin=deep-wiki') {
+      document.getElementById('deep-wiki-modal')?.showModal();
+    }
+  }
+
+  // Check on load and hash change
+  checkPluginHash();
+  window.addEventListener('hashchange', checkPluginHash);
+
+  // Clear hash when modal closes
+  document.getElementById('deep-wiki-modal')?.addEventListener('close', () => {
+    if (window.location.hash === '#plugin=deep-wiki') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  });
+
+  // Set hash when modal opens via button
+  document.querySelector('.plugin-card-btn')?.addEventListener('click', () => {
+    history.replaceState(null, '', '#plugin=deep-wiki');
+  });
+</script>

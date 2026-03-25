@@ -1,0 +1,59 @@
+#!/bin/bash
+# claude-wrapper - Claude Code wrapper for Anaagent
+# This script automatically loads team configuration before starting Claude Code
+
+# Find the real claude binary (renamed during Docker build)
+REAL_CLAUDE="/usr/bin/claude-real"
+
+# Check if we're in an Anaagent team environment
+ACTIVE_FILE="$HOME/.anaagent/active_env"
+
+if [ -f "$ACTIVE_FILE" ]; then
+    TEAM_NAME=$(cat "$ACTIVE_FILE" 2>/dev/null)
+    TEAM_PATH="$HOME/.anaagent/environments/$TEAM_NAME"
+    TEAM_YAML="$TEAM_PATH/team.yaml"
+
+    if [ -d "$TEAM_PATH" ] && [ -f "$TEAM_YAML" ]; then
+        # Export environment variables from team config
+        # Parse YAML to get Claude config
+        export ANTHROPIC_AUTH_TOKEN=$(grep -E '^anthropic_auth_token:' "$TEAM_YAML" 2>/dev/null | sed 's/anthropic_auth_token: *//' | tr -d '"')
+        export ANTHROPIC_BASE_URL=$(grep -E '^anthropic_base_url:' "$TEAM_YAML" 2>/dev/null | sed 's/anthropic_base_url: *//' | tr -d '"')
+        export ANTHROPIC_MODEL=$(grep -E '^anthropic_model:' "$TEAM_YAML" 2>/dev/null | sed 's/anthropic_model: *//' | tr -d '"')
+
+        # Set Anaagent environment
+        export AGENT_ACTIVE_TEAM="$TEAM_NAME"
+        export ANAAGENT_ENV="$TEAM_PATH"
+
+        # Count team members
+        AGENT_COUNT=$(ls "$TEAM_PATH/agents"/*.yaml 2>/dev/null | wc -l)
+        SKILL_COUNT=$(ls -d "$TEAM_PATH/skills"/*/ 2>/dev/null | wc -l)
+        MCP_COUNT=$(ls -d "$TEAM_PATH/mcps"/*/ 2>/dev/null | wc -l)
+        HOOK_COUNT=$(ls "$TEAM_PATH/hooks"/*.py 2>/dev/null | wc -l)
+
+        # Set working directory to workspace/projects
+        WORKSPACE="$TEAM_PATH/workspace/projects"
+        mkdir -p "$WORKSPACE"
+
+        # Sync team context (generate CLAUDE.md with team info, members, skills, etc.)
+        python3 -c "from anaagent.team_context import sync_team_context; sync_team_context()" 2>/dev/null
+
+        cd "$WORKSPACE"
+
+        # Show team info
+        echo ""
+        echo "╭─────────────────────────────────────────────────────────╮"
+        echo "│  [Anaagent] Team: $TEAM_NAME"
+        echo "│  Model: $ANTHROPIC_MODEL"
+        echo "│  Members: $AGENT_COUNT | Skills: $SKILL_COUNT | MCPs: $MCP_COUNT | Hooks: $HOOK_COUNT"
+        echo "│  Working Directory: $WORKSPACE"
+        echo "│  Context: CLAUDE.md (team info, members, skills, memory)"
+        echo "╰─────────────────────────────────────────────────────────╯"
+        echo ""
+        echo "  Claude will read CLAUDE.md for team context."
+        echo "  Start by reading the file or asking about the team."
+        echo ""
+    fi
+fi
+
+# Start the real Claude Code
+exec "$REAL_CLAUDE" "$@"

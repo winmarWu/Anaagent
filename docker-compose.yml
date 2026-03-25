@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  anaagent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: anaagent:latest
+    container_name: anaagent
+    volumes:
+      # 持久化数据
+      - anaagent-data:/root/.anaagent
+      # 挂载工作目录（可选）
+      - ./workspace:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    environment:
+      - ANAAGENT_ENV=
+      - TZ=Asia/Shanghai
+
+volumes:
+  anaagent-data:
+    driver: local

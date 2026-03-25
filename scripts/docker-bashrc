@@ -1,0 +1,131 @@
+# ~/.bashrc for Anaagent Docker
+# Default environment is 'base'
+
+# Terminal settings
+export TERM=xterm-256color
+stty echo 2>/dev/null
+
+# Set default PS1 to show (base)
+export PS1="(base) \u@\h:\w\$ "
+
+# Save original PS1
+export _AGENT_BASE_PS1="$PS1"
+
+# Aliases
+alias ll='ls -la'
+
+# Agent wrapper function - handles activate/deactivate with shell integration
+agent() {
+    case "$1" in
+        activate)
+            if [ -z "$2" ]; then
+                echo "Usage: agent activate <team_name>"
+                return 1
+            fi
+            local team_name="$2"
+            local team_path="$HOME/.anaagent/environments/$team_name"
+            local team_yaml="$team_path/team.yaml"
+
+            if [ ! -d "$team_path" ]; then
+                echo "ERROR: Team '$team_name' not found"
+                echo "Create it with: agent create $team_name"
+                return 1
+            fi
+
+            # Export environment variables
+            export AGENT_ACTIVE_TEAM="$team_name"
+            export ANAAGENT_ENV="$team_path"
+            echo "$team_name" > "$HOME/.anaagent/active_env"
+
+            # Read Claude config from team.yaml and set env vars
+            if [ -f "$team_yaml" ]; then
+                export ANTHROPIC_AUTH_TOKEN=$(grep -E '^anthropic_auth_token:' "$team_yaml" 2>/dev/null | sed 's/anthropic_auth_token: *//' | tr -d '"')
+                export ANTHROPIC_BASE_URL=$(grep -E '^anthropic_base_url:' "$team_yaml" 2>/dev/null | sed 's/anthropic_base_url: *//' | tr -d '"')
+                export ANTHROPIC_MODEL=$(grep -E '^anthropic_model:' "$team_yaml" 2>/dev/null | sed 's/anthropic_model: *//' | tr -d '"')
+            fi
+
+            # Generate team context (CLAUDE.md)
+            python3 -c "from anaagent.team_context import sync_team_context; sync_team_context()" 2>/dev/null
+
+            # Switch to workspace/projects directory
+            local workspace="$team_path/workspace/projects"
+            mkdir -p "$workspace"
+            cd "$workspace"
+
+            # Update PS1 to show team and current directory
+            export PS1="($team_name) \u@\h:\w\$ "
+
+            # Count team components
+            local agent_count=$(ls "$team_path/agents"/*.yaml 2>/dev/null | wc -l)
+            local skill_count=$(ls -d "$team_path/skills"/*/ 2>/dev/null | wc -l)
+            local mcp_count=$(ls -d "$team_path/mcps"/*/ 2>/dev/null | wc -l)
+            local hook_count=$(ls "$team_path/hooks"/*.py 2>/dev/null | wc -l)
+
+            echo ""
+            echo "  Team: $team_name"
+            echo "  Path: $team_path"
+            echo "  Working Directory: $workspace"
+            echo "  Model: $ANTHROPIC_MODEL"
+            echo "  Members: $agent_count | Skills: $skill_count | MCPs: $mcp_count | Hooks: $hook_count"
+            echo "  Type 'agent deactivate' to return to base"
+            echo "  Type 'claude' to start Claude Code"
+            echo ""
+            ;;
+        refresh)
+            # Refresh environment variables from current team's team.yaml
+            if [ -z "$AGENT_ACTIVE_TEAM" ]; then
+                echo "ERROR: No active team. Run 'agent activate <name>' first."
+                return 1
+            fi
+            local team_name="$AGENT_ACTIVE_TEAM"
+            local team_path="$HOME/.anaagent/environments/$team_name"
+            local team_yaml="$team_path/team.yaml"
+
+            if [ ! -f "$team_yaml" ]; then
+                echo "ERROR: team.yaml not found"
+                return 1
+            fi
+
+            # Re-read Claude config from team.yaml
+            export ANTHROPIC_AUTH_TOKEN=$(grep -E '^anthropic_auth_token:' "$team_yaml" 2>/dev/null | sed 's/anthropic_auth_token: *//' | tr -d '"')
+            export ANTHROPIC_BASE_URL=$(grep -E '^anthropic_base_url:' "$team_yaml" 2>/dev/null | sed 's/anthropic_base_url: *//' | tr -d '"')
+            export ANTHROPIC_MODEL=$(grep -E '^anthropic_model:' "$team_yaml" 2>/dev/null | sed 's/anthropic_model: *//' | tr -d '"')
+
+            # Regenerate CLAUDE.md
+            python3 -c "from anaagent.team_context import sync_team_context; sync_team_context()" 2>/dev/null
+
+            echo "OK Environment refreshed for team: $team_name"
+            echo "  Model: $ANTHROPIC_MODEL"
+            echo "  Base URL: $ANTHROPIC_BASE_URL"
+            ;;
+        deactivate)
+            # Clear environment
+            unset AGENT_ACTIVE_TEAM
+            unset ANAAGENT_ENV
+            unset ANTHROPIC_AUTH_TOKEN
+            unset ANTHROPIC_BASE_URL
+            unset ANTHROPIC_MODEL
+            rm -f "$HOME/.anaagent/active_env"
+
+            # Restore base PS1 and go back to app directory
+            cd /app
+            export PS1="(base) \u@\h:\w\$ "
+
+            echo "OK Returned to base environment"
+            ;;
+        *)
+            # Pass all other commands to the actual agent CLI
+            command agent "$@"
+            ;;
+    esac
+}
+
+# Welcome message
+echo ""
+echo "  Welcome to Anaagent!"
+echo "  Commands: agent --help, agent list, agent create <name>"
+echo "  Currently in (base) environment"
+echo ""
+
+# Ensure cursor is visible
+tput cnorm 2>/dev/null || true
