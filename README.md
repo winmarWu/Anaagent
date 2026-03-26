@@ -19,14 +19,14 @@ Anaagent 是一个 AI Agent 团队管理平台，灵感来自于 Anaconda/Conda 
 
 ```bash
 # 拉取镜像
-docker pull winmarwu/anaagent:latest
+docker pull kerwinnnn/anaagent:latest
 
 # 运行容器
 docker run -d --name anaagent-cli \
   -v anaagent-data:/root/.anaagent \
   --restart unless-stopped \
   --entrypoint "" \
-  winmarwu/anaagent:latest sleep infinity
+  kerwinnnn/anaagent:latest sleep infinity
 
 # 进入容器
 docker exec -it anaagent-cli bash
