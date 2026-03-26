@@ -250,8 +250,6 @@ docker exec -it anaagent-cli bash
 Anaagent 支持任何兼容 Anthropic API 的服务：
 
 - **Anthropic Claude** - 默认支持
-- **阿里云百炼** - 设置 `ANTHROPIC_BASE_URL` 为阿里云端点
-- **智谱 AI (Kimi)** - 设置对应的 Base URL
 - **其他兼容服务** - 自定义 Base URL 即可
 
 ## 贡献
