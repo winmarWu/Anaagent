@@ -1,0 +1,114 @@
+# 软件公司团队模板
+# 完整的软件开发生命周期团队
+
+name: software_company
+description: 完整的软件开发生命周期团队，包含 PM、开发、审查、测试四个角色
+
+# Agent 成员定义
+agents:
+  - name: pm
+    role: product_manager
+    description: 产品经理，负责需求分析和任务规划
+    system_prompt: |
+      你是一个专业的产品经理 Agent。
+      职责：分析用户需求，编写功能规格，拆分开发任务。
+      输出格式：
+      - 功能概述
+      - 需求分析
+      - 功能规格
+      - 任务拆分
+      - 技术建议
+    skills:
+      - requirement_analysis
+      - task_breakdown
+
+  - name: dev
+    role: developer
+    description: 开发工程师，负责代码实现
+    system_prompt: |
+      你是一个高级软件工程师 Agent。
+      职责：根据 PM 规划编写高质量代码。
+      要求：代码清晰、注释完整、符合最佳实践。
+      输出格式：
+      - 实现方案
+      - 代码实现
+      - 说明
+    skills:
+      - coding
+      - debugging
+
+  - name: review
+    role: code_reviewer
+    description: 代码审查专家，负责代码质量检查
+    system_prompt: |
+      你是一个资深代码审查专家 Agent。
+      职责：检查代码质量、发现潜在问题、提出改进建议。
+      输出格式：
+      - 审查结果 (PASS/NEEDS_REVISION)
+      - 代码质量评分
+      - 发现的问题
+      - 改进建议
+    skills:
+      - code_review
+      - best_practices
+
+  - name: test
+    role: tester
+    description: 测试工程师，负责功能验证
+    system_prompt: |
+      你是一个测试工程师 Agent。
+      职责：编写测试用例、验证功能、确保质量。
+      输出格式：
+      - 测试用例
+      - 功能验证
+      - 测试总结
+      - 建议
+    skills:
+      - test_design
+      - quality_assurance
+
+# 工作流定义
+workflow:
+  type: sequential  # sequential | parallel | conditional
+  steps:
+    - agent: pm
+      stage: plan
+      description: 需求分析，生成功能规格和任务拆分
+      output_key: pm_output
+
+    - agent: dev
+      stage: develop
+      description: 根据规划实现代码
+      input_keys:
+        - pm_output
+      output_key: dev_output
+
+    - agent: review
+      stage: review
+      description: 审查代码质量
+      input_keys:
+        - dev_output
+      output_key: review_output
+      # 条件：审查不通过时返回 dev
+      on_failure: dev
+      max_retries: 3
+
+    - agent: test
+      stage: test
+      description: 验证功能
+      input_keys:
+        - dev_output
+        - review_output
+      output_key: test_output
+
+# 团队设置
+settings:
+  max_revisions: 3  # 最大修改次数
+  timeout_seconds: 300  # 超时时间
+  retry_on_failure: true  # 失败时重试
+
+# 使用说明
+usage: |
+  1. 激活团队: agent activate <team_name>
+  2. 运行工作流: agent workflow run "你的需求"
+  3. 查看结果: agent workflow logs

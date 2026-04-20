@@ -9,39 +9,57 @@ import yaml
 
 from anaagent.models import EnvironmentInfo, OperationResult, TeamConfig
 
-# 默认环境存储路径
-ENVS_DIR = Path.home() / ".anaagent" / "environments"
-ACTIVE_FILE = Path.home() / ".anaagent" / "active_env"
+
+def get_envs_dir() -> Path:
+    """团队环境根目录（每次解析 Path.home()，便于测试隔离）。"""
+    return Path.home() / ".anaagent" / "environments"
+
+
+def get_active_env_file() -> Path:
+    """当前激活团队标记文件。"""
+    return Path.home() / ".anaagent" / "active_env"
+
+
+def __getattr__(name: str):
+    """兼容旧版 `ENVS_DIR` / `ACTIVE_FILE` 常量导入（运行时解析 home）。"""
+    if name == "ENVS_DIR":
+        return get_envs_dir()
+    if name == "ACTIVE_FILE":
+        return get_active_env_file()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _ensure_dirs():
     """确保必要目录存在"""
-    ENVS_DIR.mkdir(parents=True, exist_ok=True)
-    ENVS_DIR.parent.mkdir(parents=True, exist_ok=True)
+    envs = get_envs_dir()
+    envs.mkdir(parents=True, exist_ok=True)
+    envs.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _get_team_path(name: str) -> Path:
     """获取团队环境路径"""
-    return ENVS_DIR / name
+    return get_envs_dir() / name
 
 
 def _get_active_env() -> Optional[str]:
     """获取当前激活的环境名称"""
-    if ACTIVE_FILE.exists():
-        return ACTIVE_FILE.read_text(encoding="utf-8").strip()
+    active_file = get_active_env_file()
+    if active_file.exists():
+        return active_file.read_text(encoding="utf-8").strip()
     return None
 
 
 def _set_active_env(name: str):
     """设置当前激活的环境"""
     _ensure_dirs()
-    ACTIVE_FILE.write_text(name, encoding="utf-8")
+    get_active_env_file().write_text(name, encoding="utf-8")
 
 
 def _clear_active_env():
     """清除当前激活的环境"""
-    if ACTIVE_FILE.exists():
-        ACTIVE_FILE.unlink()
+    active_file = get_active_env_file()
+    if active_file.exists():
+        active_file.unlink()
 
 
 def create_environment(
@@ -149,7 +167,7 @@ def list_environments() -> list[EnvironmentInfo]:
     envs = []
     active_name = _get_active_env()
 
-    for team_dir in ENVS_DIR.iterdir():
+    for team_dir in get_envs_dir().iterdir():
         if not team_dir.is_dir():
             continue
 
@@ -203,7 +221,7 @@ def activate_environment(name: str) -> OperationResult:
 
     result_msg = str(team_path)
     if sync_result.success:
-        result_msg += f"\n  CLAUDE.md generated"
+        result_msg += "\n  CLAUDE.md generated"
 
     return OperationResult(success=True, path=team_path, message=result_msg)
 
@@ -259,3 +277,14 @@ def get_current_environment() -> Optional[Path]:
     if active_name:
         return _get_team_path(active_name)
     return None
+
+
+def get_workspace_projects_dir(team_name: str = "") -> Path:
+    """获取团队默认工作目录 workspace/projects。"""
+    if team_name:
+        team_path = _get_team_path(team_name)
+    else:
+        team_path = get_current_environment()
+        if team_path is None:
+            return Path.cwd()
+    return team_path / "workspace" / "projects"

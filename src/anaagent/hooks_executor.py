@@ -3,9 +3,9 @@
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
-from dataclasses import dataclass
 
 from anaagent.environment import get_current_environment
 
@@ -171,7 +171,6 @@ def run_hooks_for_event(
     Returns:
         所有Hook的执行结果列表
     """
-    import yaml
 
     env_path = get_current_environment()
     if not env_path:

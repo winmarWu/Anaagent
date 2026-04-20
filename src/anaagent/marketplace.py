@@ -9,20 +9,21 @@
 
 import json
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
 
-import yaml
-
-from anaagent.environment import ENVS_DIR
+from anaagent.environment import get_envs_dir
 from anaagent.models import OperationResult
 
 
-# 市场目录
-MARKETPLACE_DIR = ENVS_DIR.parent / "marketplace"
-MARKETPLACE_INDEX = MARKETPLACE_DIR / "index.json"
+def _marketplace_dir() -> Path:
+    return get_envs_dir().parent / "marketplace"
+
+
+def _marketplace_index() -> Path:
+    return _marketplace_dir() / "index.json"
 
 
 @dataclass
@@ -40,33 +41,33 @@ class MarketItem:
 
 def init_marketplace():
     """初始化市场目录"""
-    MARKETPLACE_DIR.mkdir(parents=True, exist_ok=True)
+    _marketplace_dir().mkdir(parents=True, exist_ok=True)
 
     # 创建子目录
-    (MARKETPLACE_DIR / "skills").mkdir(exist_ok=True)
-    (MARKETPLACE_DIR / "agents").mkdir(exist_ok=True)
-    (MARKETPLACE_DIR / "hooks").mkdir(exist_ok=True)
-    (MARKETPLACE_DIR / "mcps").mkdir(exist_ok=True)
+    (_marketplace_dir() / "skills").mkdir(exist_ok=True)
+    (_marketplace_dir() / "agents").mkdir(exist_ok=True)
+    (_marketplace_dir() / "hooks").mkdir(exist_ok=True)
+    (_marketplace_dir() / "mcps").mkdir(exist_ok=True)
 
     # 创建索引文件
-    if not MARKETPLACE_INDEX.exists():
+    if not _marketplace_index().exists():
         index = {
             "version": "1.0",
             "updated": datetime.now().isoformat(),
             "items": []
         }
-        with open(MARKETPLACE_INDEX, "w", encoding="utf-8") as f:
+        with open(_marketplace_index(), "w", encoding="utf-8") as f:
             json.dump(index, f, indent=2, ensure_ascii=False)
 
 
 def get_marketplace_index() -> dict:
     """获取市场索引"""
-    if not MARKETPLACE_INDEX.exists():
+    if not _marketplace_index().exists():
         init_marketplace()
         return _get_default_index()
 
     try:
-        with open(MARKETPLACE_INDEX, encoding="utf-8") as f:
+        with open(_marketplace_index(), encoding="utf-8") as f:
             index = json.load(f)
             # 如果items为空，返回默认索引
             if not index.get("items"):
@@ -283,8 +284,6 @@ def install_from_market(name: str, item_type: str) -> OperationResult:
         name: 组件名称
         item_type: 类型 (skill, agent, hook, mcp)
     """
-    from anaagent.component_manager import install_skill, install_hook
-    from anaagent.agent_manager import add_agent
 
     index = get_marketplace_index()
     items = index.get("items", [])
@@ -319,7 +318,7 @@ def install_from_market(name: str, item_type: str) -> OperationResult:
                 i["downloads"] = i.get("downloads", 0) + 1
                 break
         index["items"] = items
-        with open(MARKETPLACE_INDEX, "w", encoding="utf-8") as f:
+        with open(_marketplace_index(), "w", encoding="utf-8") as f:
             json.dump(index, f, indent=2, ensure_ascii=False)
 
     return result
@@ -416,7 +415,7 @@ def publish_to_market(
         return OperationResult(success=False, message=f"Source path not found: {source_path}")
 
     # 目标目录
-    target_dir = MARKETPLACE_DIR / f"{item_type}s"
+    target_dir = _marketplace_dir() / f"{item_type}s"
     target_path = target_dir / name
 
     try:
@@ -460,7 +459,7 @@ def publish_to_market(
         index["items"] = items
         index["updated"] = datetime.now().isoformat()
 
-        with open(MARKETPLACE_INDEX, "w", encoding="utf-8") as f:
+        with open(_marketplace_index(), "w", encoding="utf-8") as f:
             json.dump(index, f, indent=2, ensure_ascii=False)
 
         return OperationResult(success=True, path=target_path)

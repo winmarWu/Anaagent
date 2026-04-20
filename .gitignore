@@ -44,6 +44,7 @@ htmlcov/
 
 # Project specific
 .anaagent/
+temp/
 
 # Local venv
 .venv/

@@ -1,7 +1,6 @@
 """团队上下文生成器 - 生成CLAUDE.md让Claude了解当前团队"""
 
 from pathlib import Path
-from typing import Optional
 
 import yaml
 

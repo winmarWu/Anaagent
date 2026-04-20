@@ -16,7 +16,7 @@ from typing import Optional
 
 import yaml
 
-from anaagent.environment import ENVS_DIR, get_current_environment, activate_environment
+from anaagent.environment import get_envs_dir
 from anaagent.models import OperationResult
 
 
@@ -35,7 +35,7 @@ def export_team(
         include_memory: 是否包含记忆数据
         include_api_keys: 是否包含API密钥
     """
-    team_path = ENVS_DIR / team_name
+    team_path = get_envs_dir() / team_name
     if not team_path.exists():
         return OperationResult(success=False, message=f"Team '{team_name}' not found")
 
@@ -115,7 +115,7 @@ def import_team(
 
             # 确定团队名称
             team_name = new_name or metadata.get("team_name", "imported_team")
-            team_path = ENVS_DIR / team_name
+            team_path = get_envs_dir() / team_name
 
             # 检查是否已存在
             if team_path.exists() and not overwrite:
@@ -158,11 +158,11 @@ def clone_team(
         source_name: 源团队名称
         new_name: 新团队名称
     """
-    source_path = ENVS_DIR / source_name
+    source_path = get_envs_dir() / source_name
     if not source_path.exists():
         return OperationResult(success=False, message=f"Team '{source_name}' not found")
 
-    target_path = ENVS_DIR / new_name
+    target_path = get_envs_dir() / new_name
     if target_path.exists():
         return OperationResult(success=False, message=f"Team '{new_name}' already exists")
 
@@ -193,7 +193,7 @@ def clone_team(
 
 def get_team_info(team_name: str) -> dict:
     """获取团队详细信息"""
-    team_path = ENVS_DIR / team_name
+    team_path = get_envs_dir() / team_name
     if not team_path.exists():
         return {}
 

@@ -6,8 +6,8 @@ from typing import Optional
 
 import yaml
 
-from anaagent.models import OperationResult
 from anaagent.environment import get_current_environment
+from anaagent.models import OperationResult
 
 # Base环境配置文件路径
 BASE_CONFIG_FILE = Path.home() / ".anaagent" / "base_config.json"

@@ -115,6 +115,8 @@ def activate(
     env = os.environ.copy()
     env["AGENT_ACTIVE_TEAM"] = name
     env["ANAAGENT_ENV"] = str(team_path)
+    workspace_projects = team_path / "workspace" / "projects"
+    env["ANAAGENT_WORKSPACE_DIR"] = str(workspace_projects)
 
     # 启动新的 bash shell，带有自定义提示符
     bashrc_content = f'''
@@ -124,6 +126,7 @@ if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
 
 # Set prompt with team name
 export PS1="({name}) \\u@\\h:\\w\\$ "
+export ANAAGENT_WORKSPACE_DIR="{workspace_projects}"
 
 # Function to detect deactivate and exit shell
 _check_deactivate() {{
@@ -137,8 +140,11 @@ trap _check_deactivate DEBUG
 echo ""
 echo "  Team: {name}"
 echo "  Path: {team_path}"
+echo "  Workspace: {workspace_projects}"
 echo "  Type 'exit' or 'agent deactivate' to return to base"
 echo ""
+
+cd "{workspace_projects}"
 '''
 
     # 写入临时 bashrc
@@ -839,32 +845,172 @@ def memory_show():
 # ============================================
 # Token使用命令
 # ============================================
-usage_app = typer.Typer(help="Token usage")
+usage_app = typer.Typer(help="Token usage statistics and export")
 app.add_typer(usage_app, name="usage")
 
 
 @usage_app.command("today")
 def usage_today():
-    """Today's usage"""
-    from anaagent.usage_monitor import get_daily_usage
+    """Show today's token usage"""
+    from anaagent.usage_monitor import get_daily_usage, format_cost
 
     stats = get_daily_usage()
-    console.print(f"\n  Tokens: {stats['total_tokens']:,}")
-    console.print(f"  Cost: ${stats['total_cost']:.4f}")
+
+    console.print(f"\n[bold cyan]Today's Usage[/bold cyan]")
+    console.print(f"  Date: {stats['records'][0]['date'] if stats['records'] else 'N/A'}")
+    console.print(f"  API Calls: {stats['record_count']}")
+    console.print(f"  Input Tokens: {stats['total_input_tokens']:,}")
+    console.print(f"  Output Tokens: {stats['total_output_tokens']:,}")
+    console.print(f"  Total Tokens: {stats['total_tokens']:,}")
+    console.print(f"  Cost: {format_cost(stats['total_cost'])}")
 
 
-@usage_app.command("stats")
-def usage_stats():
-    """Usage statistics"""
-    from anaagent.usage_monitor import get_usage_by_agent
+@usage_app.command("week")
+def usage_week():
+    """Show this week's token usage"""
+    from anaagent.usage_monitor import get_weekly_usage, format_cost
 
-    stats = get_usage_by_agent()
+    stats = get_weekly_usage()
+
+    console.print(f"\n[bold cyan]Weekly Usage[/bold cyan]")
+    console.print(f"  API Calls: {stats['record_count']}")
+    console.print(f"  Total Tokens: {stats['total_tokens']:,}")
+    console.print(f"  Cost: {format_cost(stats['total_cost'])}")
+
+
+@usage_app.command("by-agent")
+def usage_by_agent(
+    team: str = typer.Option(None, "-t", "--team", help="Filter by team name"),
+):
+    """Show usage statistics by agent"""
+    from anaagent.usage_monitor import get_usage_by_agent, format_cost
+
+    stats = get_usage_by_agent(team)
+
     if not stats:
         console.print("[yellow]No usage data[/yellow]")
         return
 
+    table = Table(title="Usage by Agent")
+    table.add_column("Agent", style="cyan")
+    table.add_column("Calls", style="dim")
+    table.add_column("Input", style="dim")
+    table.add_column("Output", style="dim")
+    table.add_column("Total Tokens", style="green")
+    table.add_column("Cost", style="yellow")
+
     for agent, data in stats.items():
-        console.print(f"  {agent}: {data['total_tokens']:,} tokens")
+        table.add_row(
+            agent,
+            str(data['call_count']),
+            f"{data['input_tokens']:,}",
+            f"{data['output_tokens']:,}",
+            f"{data['total_tokens']:,}",
+            format_cost(data['cost'])
+        )
+
+    console.print(table)
+
+
+@usage_app.command("by-team")
+def usage_by_team():
+    """Show usage statistics by team"""
+    from anaagent.usage_monitor import get_usage_by_team, format_cost
+
+    stats = get_usage_by_team()
+
+    if not stats:
+        console.print("[yellow]No usage data[/yellow]")
+        return
+
+    table = Table(title="Usage by Team")
+    table.add_column("Team", style="cyan")
+    table.add_column("Calls", style="dim")
+    table.add_column("Total Tokens", style="green")
+    table.add_column("Cost", style="yellow")
+
+    for team, data in stats.items():
+        table.add_row(
+            team,
+            str(data['call_count']),
+            f"{data['total_tokens']:,}",
+            format_cost(data['cost'])
+        )
+
+    console.print(table)
+
+
+@usage_app.command("export")
+def usage_export(
+    start: str = typer.Option(None, "-s", "--start", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option(None, "-e", "--end", help="End date (YYYY-MM-DD)"),
+    output: str = typer.Option(None, "-o", "--output", help="Output file path"),
+):
+    """Export usage records to CSV"""
+    from anaagent.usage_monitor import export_to_csv
+    from pathlib import Path
+
+    file_path = export_to_csv(start, end, output)
+
+    console.print(f"[green]OK[/green] Exported to: {file_path}")
+    console.print(f"  File size: {file_path.stat().st_size} bytes")
+
+
+@usage_app.command("report")
+def usage_report():
+    """Generate full usage report"""
+    from anaagent.usage_monitor import get_usage_report
+
+    report = get_usage_report()
+    console.print(report)
+
+
+@usage_app.command("daily")
+def usage_daily(
+    start: str = typer.Argument(..., help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Argument(..., help="End date (YYYY-MM-DD)"),
+):
+    """Show daily usage breakdown"""
+    from anaagent.usage_monitor import get_daily_breakdown, format_cost
+
+    breakdown = get_daily_breakdown(start, end)
+
+    if not breakdown:
+        console.print("[yellow]No usage data for this period[/yellow]")
+        return
+
+    table = Table(title=f"Daily Usage ({start} to {end})")
+    table.add_column("Date", style="cyan")
+    table.add_column("Calls", style="dim")
+    table.add_column("Tokens", style="green")
+    table.add_column("Cost", style="yellow")
+
+    for day in breakdown:
+        table.add_row(
+            day['date'],
+            str(day['call_count']),
+            f"{day['total_tokens']:,}",
+            format_cost(day['cost'])
+        )
+
+    console.print(table)
+
+
+@usage_app.command("stats")
+def usage_stats():
+    """Show usage statistics summary"""
+    from anaagent.usage_monitor import get_usage_by_agent, get_daily_usage, format_cost
+
+    today = get_daily_usage()
+    by_agent = get_usage_by_agent()
+
+    console.print(f"\n[bold cyan]Usage Statistics[/bold cyan]")
+    console.print(f"\nToday: {today['total_tokens']:,} tokens ({format_cost(today['total_cost'])})")
+
+    if by_agent:
+        console.print(f"\n[bold]By Agent:[/bold]")
+        for agent, data in by_agent.items():
+            console.print(f"  {agent}: {data['total_tokens']:,} tokens, {format_cost(data['cost'])}")
 
 
 # ============================================
@@ -897,6 +1043,300 @@ def import_team(
         console.print(f"[green]OK[/green] Team imported")
     else:
         console.print(f"[red]ERROR[/red] {result.message}")
+
+
+# ============================================
+# 工作流命令 (LangGraph 多 Agent)
+# ============================================
+workflow_app = typer.Typer(help="Workflow management (multi-agent)")
+app.add_typer(workflow_app, name="workflow")
+
+
+@workflow_app.command("run")
+def workflow_run(
+    request: str = typer.Argument(..., help="User request to process"),
+    team: str = typer.Option(None, "-t", "--team", help="Team name (uses active team if not specified)"),
+    project_dir: str = typer.Option(
+        "",
+        "--project-dir",
+        help="Project directory for local execution (default: team workspace/projects)",
+    ),
+    webhook_url: str = typer.Option("", "--webhook-url", help="Callback URL when workflow finishes"),
+    test_command: str = typer.Option("pytest -q", "--test-command", help="Test command for Test agent"),
+):
+    """Run a multi-agent workflow"""
+    from pathlib import Path
+
+    from anaagent.environment import get_current_environment, get_workspace_projects_dir
+    from anaagent.workflow import run_workflow
+
+    # 获取团队名称
+    team_name = team
+    if not team_name:
+        env_path = get_current_environment()
+        if env_path:
+            team_name = env_path.name
+        else:
+            console.print("[yellow]No active team. Using default workflow.[/yellow]")
+            team_name = ""
+
+    if project_dir:
+        workspace_dir = str(Path(project_dir).expanduser().resolve())
+    else:
+        workspace_dir = str(get_workspace_projects_dir(team_name).resolve())
+
+    console.print(f"\n[bold cyan]Starting Multi-Agent Workflow[/bold cyan]")
+    console.print(f"  Team: {team_name or '(default)'}")
+    console.print(f"  Workspace: {workspace_dir}")
+    console.print(f"  Test command: {test_command}")
+    console.print(f"  Request: {request[:50]}{'...' if len(request) > 50 else ''}")
+    console.print()
+
+    with console.status("[bold green]Agents working...[/bold green]"):
+        try:
+            result = run_workflow(
+                user_request=request,
+                team_name=team_name,
+                workspace_dir=workspace_dir,
+                webhook_url=webhook_url,
+                test_command=test_command,
+            )
+        except Exception as e:
+            console.print(f"[red]ERROR[/red] Workflow failed: {e}")
+            raise typer.Exit(code=1)
+
+    # result 是 TypedDict，使用字典方式访问
+    success = result.get("success", False)
+
+    if success:
+        outputs = result.get("outputs", [])
+        total_tokens = sum(o.get("tokens_used", 0) for o in outputs) if outputs else 0
+
+        console.print(f"\n[green]✓ Workflow completed successfully[/green]")
+        console.print(f"  Total tokens: {total_tokens}")
+        console.print(f"  Stages completed: {len(outputs)}")
+        if result.get("run_log_path"):
+            console.print(f"  Log: {result['run_log_path']}")
+        if result.get("webhook_delivery"):
+            status = result["webhook_delivery"].get("message", "")
+            console.print(f"  Webhook: {status}")
+        console.print()
+
+        # 显示最终结果
+        final_result = result.get("final_result", "")
+        if final_result:
+            console.print("[bold]Final Result:[/bold]")
+            console.print(final_result)
+        else:
+            # 显示各阶段输出
+            console.print("[bold]Stage Outputs:[/bold]")
+            if result.get("pm_output"):
+                console.print(f"\n[cyan]PM Output:[/cyan]")
+                console.print(result["pm_output"][:500] + "..." if len(result["pm_output"]) > 500 else result["pm_output"])
+            if result.get("dev_output"):
+                console.print(f"\n[cyan]Dev Output:[/cyan]")
+                console.print(result["dev_output"][:500] + "..." if len(result["dev_output"]) > 500 else result["dev_output"])
+    else:
+        console.print(f"[red]✗ Workflow failed[/red]")
+        console.print(f"  Error: {result.get('error_message', 'Unknown error')}")
+        if result.get("run_log_path"):
+            console.print(f"  Log: {result['run_log_path']}")
+        if result.get("webhook_delivery"):
+            status = result["webhook_delivery"].get("message", "")
+            console.print(f"  Webhook: {status}")
+        raise typer.Exit(code=1)
+
+
+@workflow_app.command("status")
+def workflow_status():
+    """Show workflow status"""
+    from anaagent.environment import get_current_environment
+
+    env_path = get_current_environment()
+    if not env_path:
+        console.print("[yellow]No active team[/yellow]")
+        return
+
+    console.print(f"\n[bold cyan]Workflow Status[/bold cyan]")
+    console.print(f"  Team: {env_path.name}")
+    console.print(f"  Workflow Type: software_company (default)")
+
+    # 显示可用的 Agent
+    agents_dir = env_path / "agents"
+    if agents_dir.exists():
+        agents = list(agents_dir.glob("*.yaml"))
+        console.print(f"  Agents: {len(agents)}")
+        for agent_file in agents:
+            console.print(f"    - {agent_file.stem}")
+
+
+@workflow_app.command("logs")
+def workflow_logs(
+    workflow_id: str = typer.Argument(None, help="Workflow ID (latest if not specified)"),
+):
+    """Show workflow logs"""
+    from anaagent.environment import get_current_environment
+
+    env_path = get_current_environment()
+    if not env_path:
+        console.print("[yellow]No active team[/yellow]")
+        return
+
+    logs_dir = env_path / "logs"
+    if not logs_dir.exists():
+        console.print("[yellow]No workflow logs found[/yellow]")
+        return
+
+    # 查找日志文件
+    log_files = list(logs_dir.glob("workflow_*.json"))
+    if not log_files:
+        console.print("[yellow]No workflow logs found[/yellow]")
+        return
+
+    # 显示最新的日志
+    latest_log = max(log_files, key=lambda f: f.stat().st_mtime)
+    console.print(f"\n[bold cyan]Latest Workflow Log[/bold cyan]")
+    console.print(f"  File: {latest_log.name}")
+
+    import json
+    try:
+        with open(latest_log, encoding="utf-8") as f:
+            log_data = json.load(f)
+        console.print(f"  Workflow ID: {log_data.get('workflow_id', '-')}")
+        console.print(f"  Status: {log_data.get('status', '-')}")
+        console.print(f"  Request: {log_data.get('user_request', '-')[:50]}...")
+    except Exception as e:
+        console.print(f"[red]Error reading log: {e}[/red]")
+
+
+@workflow_app.command("list")
+def workflow_list():
+    """List available workflow types"""
+    from anaagent.workflow import list_workflow_types
+
+    workflows = list_workflow_types()
+
+    table = Table(title="Available Workflow Types")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="dim")
+    table.add_column("Agents", style="green")
+
+    for wf in workflows:
+        table.add_row(
+            wf["name"],
+            wf["description"],
+            ", ".join(wf["nodes"])
+        )
+
+    console.print(table)
+
+
+# ============================================
+# 任务命令（小程序/服务端桥接）
+# ============================================
+task_app = typer.Typer(help="Task queue API and local worker")
+app.add_typer(task_app, name="task")
+
+
+@task_app.command("serve")
+def task_serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="API listen host"),
+    port: int = typer.Option(8765, "--port", help="API listen port"),
+    api_secret: str = typer.Option("", "--api-secret", help="Shared secret for API signature"),
+):
+    """Start local task API server"""
+    import os
+    from anaagent.tasking import run_task_api_server
+
+    if api_secret:
+        os.environ["ANAAGENT_TASK_API_SECRET"] = api_secret
+        console.print("[cyan]Task API signature enabled[/cyan]")
+    console.print(f"[cyan]Starting task API server at http://{host}:{port}[/cyan]")
+    run_task_api_server(host=host, port=port)
+
+
+@task_app.command("worker")
+def task_worker(
+    interval: int = typer.Option(2, "--interval", help="Polling interval in seconds"),
+    stale_timeout: int = typer.Option(900, "--stale-timeout", help="RUNNING timeout seconds"),
+):
+    """Run local worker loop"""
+    import time
+    from anaagent.tasking import process_pending_tasks_once
+
+    console.print(f"[cyan]Worker started (interval={interval}s)[/cyan]")
+    try:
+        while True:
+            info = process_pending_tasks_once(stale_timeout_seconds=stale_timeout)
+            if info.get("status") == "processed":
+                ok = info.get("success", False)
+                console.print(
+                    f"[green]{'OK' if ok else 'FAIL'}[/green] "
+                    f"task={info.get('task_id')} result={info}"
+                )
+            time.sleep(max(1, interval))
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Worker stopped[/yellow]")
+
+
+@task_app.command("submit")
+def task_submit(
+    request: str = typer.Argument(..., help="Task request"),
+    team: str = typer.Option("", "-t", "--team", help="Team name"),
+    project_dir: str = typer.Option("", "--project-dir", help="Project directory"),
+    callback_url: str = typer.Option("", "--callback-url", help="Callback URL"),
+    test_command: str = typer.Option("pytest -q", "--test-command", help="Test command"),
+    idempotency_key: str = typer.Option("", "--idempotency-key", help="Idempotency key"),
+    max_retries: int = typer.Option(2, "--max-retries", help="Max retry count"),
+):
+    """Submit a workflow task into local queue"""
+    from anaagent.environment import get_workspace_projects_dir
+    from anaagent.tasking.store import enqueue_task
+
+    payload = {
+        "request": request,
+        "team_name": team,
+        "project_dir": project_dir or str(get_workspace_projects_dir(team).resolve()),
+        "test_command": test_command,
+        "callback_url": callback_url,
+        "workflow_type": "software_company",
+    }
+    task_id, created = enqueue_task(
+        task_type="workflow_run",
+        payload=payload,
+        idempotency_key=idempotency_key,
+        max_retries=max_retries,
+    )
+    if created:
+        console.print(f"[green]OK[/green] task submitted: {task_id}")
+    else:
+        console.print(f"[yellow]EXISTS[/yellow] reused task: {task_id}")
+
+
+@task_app.command("get")
+def task_get(task_id: str = typer.Argument(..., help="Task ID")):
+    """Get task status/result"""
+    from anaagent.tasking import get_task
+
+    task = get_task(task_id)
+    if task is None:
+        console.print(f"[red]Task not found:[/red] {task_id}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold cyan]Task {task_id}[/bold cyan]")
+    console.print(f"  Status: {task['status']}")
+    console.print(f"  Created: {task['created_at']}")
+    if task.get("started_at"):
+        console.print(f"  Started: {task['started_at']}")
+    if task.get("completed_at"):
+        console.print(f"  Completed: {task['completed_at']}")
+    if task.get("error_message"):
+        console.print(f"  Error: {task['error_message']}")
+    if task.get("result"):
+        result = task["result"]
+        console.print(f"  Workflow ID: {result.get('workflow_id', '-')}")
+        console.print(f"  Stage: {result.get('current_stage', '-')}")
+        console.print(f"  Log: {result.get('run_log_path', '-')}")
 
 
 # ============================================

@@ -1,9 +1,8 @@
 """Commands 命令系统 - 参考 Claude Code Commands 设计"""
 
-import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
 
 import yaml
 

@@ -2,7 +2,6 @@
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 
 def init_database(db_path: Path):

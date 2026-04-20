@@ -1,13 +1,12 @@
 """Agent成员管理模块"""
 
-import shutil
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
-from anaagent.models import AgentConfig, OperationResult
 from anaagent.environment import get_current_environment
+from anaagent.models import AgentConfig, OperationResult
 
 
 def _get_agents_dir() -> Optional[Path]:

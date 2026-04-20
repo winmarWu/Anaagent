@@ -7,8 +7,8 @@ from typing import Optional
 
 import yaml
 
-from anaagent.models import OperationResult, SkillMetadata
 from anaagent.environment import get_current_environment
+from anaagent.models import OperationResult
 
 
 def _get_component_dir(component_type: str) -> Optional[Path]:

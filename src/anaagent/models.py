@@ -74,3 +74,30 @@ class SkillMetadata(BaseModel):
     author: str = "community"
     dependencies: list[str] = Field(default_factory=list)
     triggers: list[str] = Field(default_factory=list)
+
+
+class WorkflowResult(BaseModel):
+    """工作流执行结果"""
+
+    success: bool
+    workflow_id: str = ""
+    user_request: str = ""
+    final_result: str = ""
+    pm_output: str = ""
+    dev_output: str = ""
+    review_output: str = ""
+    test_output: str = ""
+    total_tokens: int = 0
+    started_at: str = ""
+    completed_at: str = ""
+    error_message: str = ""
+
+
+class TeamTemplate(BaseModel):
+    """团队模板"""
+
+    name: str
+    description: str = ""
+    agents: list[dict] = Field(default_factory=list)
+    workflow: dict = Field(default_factory=dict)
+    settings: dict = Field(default_factory=dict)

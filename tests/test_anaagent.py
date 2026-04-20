@@ -1,14 +1,8 @@
 """Anaagent 单元测试"""
 
-import os
-import shutil
-import tempfile
 from pathlib import Path
 
 import pytest
-
-# 设置测试环境
-os.environ["HOME"] = str(Path.home())
 
 
 class TestEnvironment:
@@ -21,9 +15,10 @@ class TestEnvironment:
     def teardown_method(self):
         """每个测试后清理"""
         from anaagent.environment import remove_environment
+
         try:
             remove_environment(self.test_env)
-        except:
+        except Exception:
             pass
 
     def test_create_environment(self):
@@ -53,7 +48,7 @@ class TestEnvironment:
         assert self.test_env in names
 
     def test_activate_environment(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
 
         create_environment(self.test_env)
         result = activate_environment(self.test_env)
@@ -71,7 +66,7 @@ class TestAgentManager:
     """Agent管理测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_agent_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -101,10 +96,11 @@ class TestAgentManager:
         add_agent("agent2", "reviewer")
 
         agents = list_agents()
-        assert len(agents) == 2
         names = [a.name for a in agents]
+        assert "main" in names
         assert "agent1" in names
         assert "agent2" in names
+        assert len(agents) == 3
 
     def test_remove_agent(self):
         from anaagent.agent_manager import add_agent, remove_agent
@@ -118,7 +114,7 @@ class TestComponentManager:
     """组件管理测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_component_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -163,7 +159,7 @@ class TestConfigManager:
     """配置管理测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_config_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -174,14 +170,14 @@ class TestConfigManager:
         remove_environment(self.test_env)
 
     def test_set_api_key(self):
-        from anaagent.config_manager import set_api_key, get_api_key
+        from anaagent.config_manager import get_api_key, set_api_key
 
         set_api_key("test-provider", "test-key-123")
         key = get_api_key("test-provider")
         assert key == "test-key-123"
 
     def test_list_api_keys(self):
-        from anaagent.config_manager import set_api_key, list_api_keys
+        from anaagent.config_manager import list_api_keys, set_api_key
 
         set_api_key("provider1", "key1")
         set_api_key("provider2", "key2")
@@ -191,7 +187,7 @@ class TestConfigManager:
         assert "provider2" in keys
 
     def test_set_setting(self):
-        from anaagent.config_manager import set_setting, get_setting
+        from anaagent.config_manager import get_setting, set_setting
 
         set_setting("test_key", "test_value")
         value = get_setting("test_key")
@@ -202,7 +198,7 @@ class TestMemoryManager:
     """记忆管理测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_memory_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -237,7 +233,7 @@ class TestCommandsManager:
     """命令管理测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_cmd_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -285,7 +281,7 @@ class TestClaudeIntegration:
     """Claude集成测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_claude_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -335,7 +331,7 @@ class TestUsageMonitor:
     """使用监控测试"""
 
     def setup_method(self):
-        from anaagent.environment import create_environment, activate_environment
+        from anaagent.environment import activate_environment, create_environment
         self.test_env = "test_usage_env"
         create_environment(self.test_env)
         activate_environment(self.test_env)
@@ -346,7 +342,7 @@ class TestUsageMonitor:
         remove_environment(self.test_env)
 
     def test_record_usage(self):
-        from anaagent.usage_monitor import record_usage, get_daily_usage
+        from anaagent.usage_monitor import get_daily_usage, record_usage
 
         record_usage("test_agent", "claude-sonnet-4-6", 1000, 500)
 
@@ -374,13 +370,14 @@ class TestTeamIO:
 
     def teardown_method(self):
         from anaagent.environment import remove_environment
+
         try:
             remove_environment(self.test_env)
-        except:
+        except Exception:
             pass
         try:
             remove_environment(f"{self.test_env}_cloned")
-        except:
+        except Exception:
             pass
         # 清理导出文件
         for f in Path(".").glob("*.anaagent"):
@@ -399,6 +396,25 @@ class TestTeamIO:
 
         result = clone_team(self.test_env, f"{self.test_env}_cloned")
         assert result.success
+
+
+class TestWorkflowGraph:
+    """工作流图可编译（不调用外部 API）"""
+
+    def test_all_workflow_types_compile(self):
+        from anaagent.workflow.graph import WORKFLOW_TYPES
+
+        for spec in WORKFLOW_TYPES.values():
+            factory = spec["create"]
+            assert factory is not None
+            app = factory().compile()
+            assert app is not None
+
+    def test_run_workflow_rejects_unknown_type(self):
+        from anaagent.workflow.graph import run_workflow
+
+        with pytest.raises(ValueError, match="未知工作流类型"):
+            run_workflow("hello", workflow_type="nonexistent_workflow_xyz")
 
 
 if __name__ == "__main__":

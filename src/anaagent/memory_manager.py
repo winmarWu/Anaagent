@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from anaagent.database import add_memory, search_memories
 from anaagent.environment import get_current_environment
-from anaagent.database import add_memory, get_recent_memories, search_memories
 
 
 def get_memory_dir() -> Optional[Path]:
@@ -101,7 +101,7 @@ def append_to_long_term_memory(content: str, category: str = "note"):
 
     if not memory_md.exists():
         # 创建默认结构
-        default_content = f"""# Team Memory
+        default_content = """# Team Memory
 
 ## Important Decisions
 
@@ -213,7 +213,7 @@ def summarize_day() -> str:
     content = today_log.read_text(encoding="utf-8")
 
     # 简单统计
-    lines = [l for l in content.split("\n") if l.strip().startswith("-")]
+    lines = [line for line in content.split("\n") if line.strip().startswith("-")]
 
     categories = {}
     for line in lines:
