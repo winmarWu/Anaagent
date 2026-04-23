@@ -260,6 +260,12 @@ def dev_node(state: WorkflowState) -> dict:
 - write_file(path, content, mode=overwrite|append)
 - run_shell(command, timeout_seconds)
 - git_status()
+
+执行约束（必须遵守）:
+1) actions 总数 <= 10，优先最关键文件，避免无效大批量操作。
+2) 至少创建一个非空业务源码文件（如 src/main.py），内容不能只有注释或空白。
+3) 至少创建一个非空测试文件（如 tests/test_main.py），包含可执行测试用例。
+4) 除非明确需要，不要只创建 __init__.py / 占位文件后结束。
 """
     workspace_dir = _get_state_value(state, "workspace_dir", str(Path.cwd()))
     user_request = _get_state_value(state, "user_request", "")
@@ -433,6 +439,10 @@ def review_node(state: WorkflowState) -> dict:
     test_results = [r for r in command_results if r.get("stage") == "test" and r.get("label") == "test_command"]
     last_test = test_results[-1] if test_results else {}
     test_failed = bool(last_test) and not last_test.get("success", False)
+    validation_failed = any(
+        r.get("stage") == "dev" and r.get("tool") == "validation" and not r.get("success", False)
+        for r in command_results
+    )
 
     system_prompt = """你是代码审查专家。请基于真实执行结果给出结论。
 输出格式：
@@ -468,10 +478,13 @@ Test 输出：{_get_state_value(state, "test_output", "")}
         content = f"审查降级为规则判断：{exc}"
 
     llm_requests_revision = "NEEDS_REVISION" in content.upper()
-    needs_revision = (test_failed or llm_requests_revision) and revision_count < max_revisions
+    strict_review = os.environ.get("ANAAGENT_REVIEW_STRICT", "").lower() == "true"
+    should_revise = test_failed or validation_failed or (strict_review and llm_requests_revision)
+    needs_revision = should_revise and revision_count < max_revisions
     review_text = (
         f"{content}\n\n"
         f"规则判断：测试{'失败' if test_failed else '通过'}，"
+        f"开发动作校验{'失败' if validation_failed else '通过'}，"
         f"当前修订轮次 {revision_count}/{max_revisions}"
     )
     output = AgentOutput(
@@ -493,13 +506,13 @@ Test 输出：{_get_state_value(state, "test_output", "")}
             "outputs": _append_agent_output(state, output),
         }
 
-    if test_failed and revision_count >= max_revisions:
+    if should_revise and revision_count >= max_revisions:
         return {
             "review_output": review_text,
             "current_stage": WorkflowStage.FAILED.value,
             "next_agent": "",
             "success": False,
-            "error_message": "达到最大修订次数，测试仍未通过",
+            "error_message": "达到最大修订次数，工作流仍未通过质量门禁",
             "completed_at": datetime.now().isoformat(),
             "outputs": _append_agent_output(state, output),
         }

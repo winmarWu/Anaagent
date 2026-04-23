@@ -1,0 +1,19 @@
+{
+  "name": "@winmarwuran/local-cli",
+  "version": "0.1.18",
+  "description": "One-command local docker connector for Anaagent mini-program binding",
+  "type": "module",
+  "bin": {
+    "anaagent-local": "bin/anaagent-local.js"
+  },
+  "scripts": {
+    "check": "node --check ./bin/anaagent-local.js"
+  },
+  "keywords": [
+    "anaagent",
+    "docker",
+    "wechat-mini-program",
+    "binding"
+  ],
+  "license": "MIT"
+}

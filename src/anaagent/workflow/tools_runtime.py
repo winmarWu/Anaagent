@@ -22,7 +22,7 @@ DEFAULT_COMMAND_TIMEOUT = 120
 MAX_OUTPUT_CHARS = 8000
 MAX_READ_FILE_CHARS = 20000
 MAX_WRITE_FILE_CHARS = 200000
-MAX_TOOL_CALLS = 8
+MAX_TOOL_CALLS = 20
 MAX_COMMAND_TIMEOUT = 300
 
 DENYLIST_COMMAND_TOKENS = [
@@ -235,11 +235,14 @@ def parse_tool_calls(raw_calls: Any) -> tuple[list[ToolCall], list[str]]:
     """解析并校验工具调用列表。"""
     if not isinstance(raw_calls, list):
         return [], ["actions is not a list"]
+    errors: list[str] = []
     if len(raw_calls) > MAX_TOOL_CALLS:
-        return [], [f"too many actions (max={MAX_TOOL_CALLS})"]
+        errors.append(
+            f"too many actions (max={MAX_TOOL_CALLS}), truncated from {len(raw_calls)} to {MAX_TOOL_CALLS}"
+        )
+        raw_calls = raw_calls[:MAX_TOOL_CALLS]
 
     parsed_calls: list[ToolCall] = []
-    errors: list[str] = []
     for idx, raw in enumerate(raw_calls):
         try:
             call = ToolCall.model_validate(raw)

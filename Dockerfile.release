@@ -1,0 +1,7 @@
+FROM kerwinnnn/anaagent:latest
+
+WORKDIR /app
+
+# 增量发布：复用已安装依赖，仅覆盖最新源码与说明文件。
+COPY README.md pyproject.toml ./
+COPY src/anaagent/ ./src/anaagent/

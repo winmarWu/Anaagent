@@ -52,7 +52,11 @@ COPY src/anaagent/ ./src/anaagent/
 COPY refer/ ./refer/
 
 # 安装项目（依赖以 pyproject.toml 为准）
-RUN pip install --upgrade pip && pip install -e .
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_TRUSTED_HOST=pypi.org
+RUN pip install --upgrade pip -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST} && \
+    pip install --no-cache-dir hatchling editables -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST} && \
+    pip install --no-cache-dir -e . --no-build-isolation -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST}
 
 # 配置bashrc，默认显示 (base) 环境
 COPY scripts/docker-bashrc /root/.bashrc

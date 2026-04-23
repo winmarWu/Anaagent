@@ -1313,6 +1313,97 @@ def task_submit(
         console.print(f"[yellow]EXISTS[/yellow] reused task: {task_id}")
 
 
+@task_app.command("device-id")
+def task_device_id(
+    device_name: str = typer.Option("", "--device-name", help="Optional local device name"),
+):
+    """Get or create local persistent device identity"""
+    from anaagent.tasking import get_or_create_local_device_identity
+
+    identity = get_or_create_local_device_identity(device_name=device_name)
+    console.print("[bold cyan]Local Device Identity[/bold cyan]")
+    console.print(f"  Device ID: {identity.get('device_id', '-')}")
+    console.print(f"  Device Name: {identity.get('device_name', '-') or '-'}")
+    console.print(f"  Created At: {identity.get('created_at', '-')}")
+
+
+@task_app.command("code-refresh")
+def task_code_refresh(
+    user_id: str = typer.Option(..., "--user-id", help="Mini-program account user id"),
+    ttl_seconds: int = typer.Option(90, "--ttl", help="Binding code ttl seconds"),
+):
+    """Issue a one-time short-lived binding code"""
+    from anaagent.tasking import issue_binding_code
+
+    result = issue_binding_code(user_id=user_id, ttl_seconds=ttl_seconds)
+    if not result.get("ok"):
+        console.print(f"[red]ERROR[/red] {result.get('reason', 'failed to issue code')}")
+        raise typer.Exit(code=1)
+
+    console.print("[green]OK[/green] Binding code issued")
+    console.print(f"  User ID: {result.get('user_id')}")
+    console.print(f"  Code: {result.get('code')}")
+    console.print(f"  Expires At: {result.get('expires_at')}")
+    console.print(f"  TTL: {result.get('ttl_seconds')}s")
+
+
+@task_app.command("bind")
+def task_bind(
+    code: str = typer.Option(..., "--code", help="Binding code from mini program"),
+    device_name: str = typer.Option("", "--device-name", help="Local device name"),
+    device_id: str = typer.Option("", "--device-id", help="Override device id"),
+):
+    """Bind local docker node with a mini-program account code"""
+    from anaagent.tasking import get_or_create_local_device_identity, submit_binding_code
+
+    identity = get_or_create_local_device_identity(device_name=device_name)
+    resolved_device_id = device_id.strip() or str(identity.get("device_id", ""))
+    result = submit_binding_code(code=code, device_id=resolved_device_id, device_name=device_name)
+    if not result.get("ok"):
+        console.print(f"[red]ERROR[/red] {result.get('reason', 'bind failed')}")
+        raise typer.Exit(code=1)
+
+    console.print("[green]OK[/green] Device bound")
+    console.print(f"  User ID: {result.get('user_id')}")
+    console.print(f"  Device ID: {result.get('device_id')}")
+    if device_name:
+        console.print(f"  Device Name: {device_name}")
+    console.print(f"  Status: {result.get('status')}")
+
+
+@task_app.command("bind-status")
+def task_bind_status(
+    user_id: str = typer.Option("", "--user-id", help="User id to inspect latest code"),
+    device_id: str = typer.Option("", "--device-id", help="Device id to inspect binding"),
+):
+    """Query latest binding code/device binding state"""
+    from anaagent.tasking import get_binding_status, get_or_create_local_device_identity
+
+    resolved_device_id = device_id.strip()
+    if not resolved_device_id and not user_id:
+        identity = get_or_create_local_device_identity()
+        resolved_device_id = str(identity.get("device_id", ""))
+
+    payload = get_binding_status(user_id=user_id, device_id=resolved_device_id)
+    if not payload.get("ok"):
+        console.print(f"[red]ERROR[/red] {payload.get('reason', 'query failed')}")
+        raise typer.Exit(code=1)
+
+    console.print("[bold cyan]Binding Status[/bold cyan]")
+    if payload.get("user"):
+        user_data = payload["user"]
+        console.print(f"  User Latest Code Status: {user_data.get('status', '-')}")
+        console.print(f"  Code Suffix: {user_data.get('code_suffix', '--')}")
+        console.print(f"  Expires At: {user_data.get('expires_at', '-')}")
+        console.print(f"  Bound Device: {user_data.get('device_id', '-') or '-'}")
+    if payload.get("device"):
+        device_data = payload["device"]
+        console.print(f"  Device ID: {device_data.get('device_id', '-')}")
+        console.print(f"  Device Owner: {device_data.get('owner_user_id', '-') or '-'}")
+        console.print(f"  Device Status: {device_data.get('status', '-')}")
+        console.print(f"  Last Seen: {device_data.get('last_seen_at', '-')}")
+
+
 @task_app.command("get")
 def task_get(task_id: str = typer.Argument(..., help="Task ID")):
     """Get task status/result"""

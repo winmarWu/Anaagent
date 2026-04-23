@@ -46,6 +46,32 @@ pip install -e .
 agent --help
 ```
 
+### 方式三：npm 一行命令连接本地 Docker（小程序绑定）
+
+```bash
+# 一行创建本地 docker 环境并启动容器
+npx @winmarwuran/local-cli setup
+
+# 小程序刷新后拿到绑定码（例如 A1B2C3），本地一行连接
+npx @winmarwuran/local-cli connect --code A1B2C3
+
+# 查询绑定状态（可选）
+npx @winmarwuran/local-cli status
+
+# 新终端进入本地管理后台（可选）
+npx @winmarwuran/local-cli console
+```
+
+默认绑定服务地址：`https://www.winmar.top`。可用环境变量覆盖：
+
+```bash
+# PowerShell
+$env:ANAAGENT_BIND_SERVER="https://api.example.com"
+```
+
+说明：`connect` 成功后会自动拉起本地 WebSocket 中转，无需额外执行 `client-v4.js start`。
+同时会自动同步小程序端保存的 `API Key / Base URL / Model` 到本地容器配置。
+
 ## 基本使用
 
 ### 团队管理
