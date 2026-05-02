@@ -67,7 +67,8 @@ def create_environment(
     description: str = "",
     auth_token: str = "",
     base_url: str = "",
-    model: str = ""
+    model: str = "",
+    team_type: str = "software_dev",
 ) -> OperationResult:
     """
     创建新的团队环境
@@ -79,6 +80,8 @@ def create_environment(
     - 初始化 SQLite 向量数据库
     - 自动创建 main 员工
     """
+    from anaagent.config_manager import normalize_team_type
+
     _ensure_dirs()
     team_path = _get_team_path(name)
 
@@ -87,6 +90,8 @@ def create_environment(
         return OperationResult(
             success=False, message=f"团队 '{name}' 已存在"
         )
+
+    tt = normalize_team_type(team_type)
 
     try:
         # 创建目录结构
@@ -111,14 +116,21 @@ def create_environment(
             anthropic_auth_token=auth_token,
             anthropic_base_url=base_url or "https://api.anthropic.com",
             anthropic_model=model or "claude-sonnet-4-6",
+            team_type=tt,
         )
         config_path = team_path / "team.yaml"
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(config.model_dump(), f, allow_unicode=True, default_flow_style=False)
 
-        # 创建初始 MEMORY.md
+        # 创建初始 MEMORY.md（含团队类型，便于人类阅读；权威字段仍在 team.yaml）
         memory_md = team_path / "memory" / "MEMORY.md"
-        memory_md.write_text(f"# Team Memory: {name}\n\n## Important Decisions\n\n## Preferences\n\n## Key Facts\n", encoding="utf-8")
+        memory_md.write_text(
+            f"# Team Memory: {name}\n\n"
+            f"## Team type\n"
+            f"`{tt}` (software_dev / article_writing / research_assistant)\n\n"
+            f"## Important Decisions\n\n## Preferences\n\n## Key Facts\n",
+            encoding="utf-8",
+        )
 
         # 初始化向量数据库
         from anaagent.database import init_database
@@ -186,6 +198,7 @@ def list_environments() -> list[EnvironmentInfo]:
                 active=(team_dir.name == active_name),
                 created_at=config.created_at,
                 description=config.description,
+                team_type=getattr(config, "team_type", None) or "software_dev",
             )
         )
 

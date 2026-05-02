@@ -35,6 +35,8 @@ class TeamConfig(BaseModel):
             "hooks_enabled": True,
         }
     )
+    # 团队业务类型：软件开发 / 文章撰写 / 科研辅助（影响小程序工作流推荐）
+    team_type: str = "software_dev"
 
 
 class AgentConfig(BaseModel):
@@ -63,6 +65,7 @@ class EnvironmentInfo(BaseModel):
     active: bool = False
     created_at: str = ""
     description: str = ""
+    team_type: str = "software_dev"
 
 
 class SkillMetadata(BaseModel):

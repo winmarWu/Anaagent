@@ -279,6 +279,47 @@ function ensureDocker() {
   }
 }
 
+/** 与本 CLI 同仓库的 Anaagent 根目录（…/Anaagent/npm/anaagent-cli/bin → 上三级） */
+function defaultAnaagentRepoRoot() {
+  return path.resolve(path.dirname(CLI_FILE), "..", "..", "..");
+}
+
+/**
+ * 将宿主机 Anaagent 源码拷入容器并 pip install -e，使 agent list 含 Team Type、normalize_team_type 等与仓库一致。
+ * 重建容器或换新镜像后需重新执行；与团队类型是否在小程显示无关（后者依赖绑定服务 API）。
+ */
+function installDevAnaagentInContainer(repoRoot) {
+  const abs = path.resolve(repoRoot);
+  const marker = path.join(abs, "pyproject.toml");
+  if (!existsSync(marker)) {
+    console.error(
+      "未找到 Anaagent Python 包根目录（缺少 pyproject.toml）：\n" +
+        `  ${abs}\n` +
+        "若 npm 包不在本仓库内，请指定：install-dev --src <Anaagent 根目录>"
+    );
+    process.exit(1);
+  }
+  ensureContainerStarted();
+  capture("docker", ["exec", CONTAINER, "rm", "-rf", "/tmp/anaagent-repo"]);
+  const cpResult = capture("docker", ["cp", abs, `${CONTAINER}:/tmp/anaagent-repo`]);
+  if (cpResult.status !== 0) {
+    console.error("docker cp 失败:", cpResult.stderr || cpResult.stdout || cpResult.error);
+    process.exit(cpResult.status || 1);
+  }
+  run("docker", [
+    "exec",
+    "-i",
+    CONTAINER,
+    "python",
+    "-m",
+    "pip",
+    "install",
+    "-e",
+    "/tmp/anaagent-repo"
+  ]);
+  console.log("已在容器内 pip install -e /tmp/anaagent-repo。进入 console 后执行 agent list 应含 Team Type 列。");
+}
+
 function ensureWorkspaceDir() {
   const workspace = path.resolve(process.cwd(), "workspace");
   if (!existsSync(workspace)) {
@@ -413,6 +454,7 @@ if root.exists():
         name = env_dir.name
         created_at = ''
         description = ''
+        team_type = 'software_dev'
         team_yaml = env_dir / 'team.yaml'
         if yaml is not None and team_yaml.exists():
             try:
@@ -421,6 +463,13 @@ if root.exists():
                 data = {}
             created_at = str(data.get('created_at') or '')
             description = str(data.get('description') or '')
+            try:
+                from anaagent.config_manager import normalize_team_type as _norm_tt
+                team_type = _norm_tt(
+                    str(data.get('team_type') or data.get('teamType') or '') or None
+                )
+            except Exception:
+                team_type = str(data.get('team_type') or data.get('teamType') or 'software_dev')
         members = []
         agents_dir = env_dir / 'agents'
         if agents_dir.exists():
@@ -436,6 +485,8 @@ if root.exists():
             'name': name,
             'description': description,
             'createdAt': created_at,
+            'teamType': team_type,
+            'team_type': team_type,
             'isActive': name == active,
             'memberCount': len(members),
             'members': members
@@ -453,17 +504,48 @@ print(json.dumps(teams, ensure_ascii=False))
   }
 }
 
+/**
+ * 团队类型在后端/小程序里字段名不统一；尽量兼容多种键名。
+ * 若仍得不到值则回退 software_dev（常见于绑定服务未在 pending/teams 里持久化 teamType）。
+ */
+function pickPendingTeamType(item) {
+  if (!item || typeof item !== "object") return "software_dev";
+  const c = item;
+  const fromStr =
+    c.teamType ??
+    c.team_type ??
+    c.type ??
+    c.category ??
+    c.teamKind ??
+    c.teamCategory;
+  if (fromStr !== undefined && fromStr !== null && String(fromStr).trim() !== "") {
+    return String(fromStr).trim();
+  }
+  const idx = c.teamTypeIndex ?? c.team_type_index ?? c.typeIndex ?? c.teamTypeIdx;
+  if (typeof idx === "number" && Number.isFinite(idx)) {
+    const map = ["software_dev", "article_writing", "research_assistant"];
+    if (idx >= 0 && idx < map.length) return map[idx];
+  }
+  if (typeof idx === "string" && /^\d+$/.test(idx)) {
+    const n = parseInt(idx, 10);
+    const map = ["software_dev", "article_writing", "research_assistant"];
+    if (n >= 0 && n < map.length) return map[n];
+  }
+  return "software_dev";
+}
+
 function printHelp() {
   console.log(`
 Anaagent Local CLI
 
 Usage:
-  npx @winmarwuran/local-cli <command> [options]
+  npx @wuran/local-cli <command> [options]
 
 Commands:
   setup                        Pull image, create volume, and start container
   init                         Pull image and prepare local volume/workspace
   start                        Start local docker connector container
+  install-dev [--src PATH]     Copy Anaagent repo into container; pip install -e (agent list Team Type, etc.)
   connect --code CODE          Bind local node with mini-program binding code
   shell                        Enter docker shell
   console                      Alias of shell, open management console
@@ -476,10 +558,10 @@ Commands:
   bridge-stop                  Stop local websocket bridge daemon
 
 Examples:
-  npx @winmarwuran/local-cli setup
-  npx @winmarwuran/local-cli connect --code A1B2C3
-  npx @winmarwuran/local-cli console
-  npx @winmarwuran/local-cli status
+  npx @wuran/local-cli setup
+  npx @wuran/local-cli connect --code A1B2C3
+  npx @wuran/local-cli console
+  npx @wuran/local-cli status
 
 Bind Server:
   default: https://www.winmar.top
@@ -532,6 +614,12 @@ async function main() {
       ensureContainerStarted();
       console.log(`Container '${CONTAINER}' is running.`);
       return;
+    case "install-dev": {
+      const src = options.src ? String(options.src) : "";
+      const repo = src ? path.resolve(src) : defaultAnaagentRepoRoot();
+      installDevAnaagentInContainer(repo);
+      return;
+    }
     case "shell":
       ensureContainerStarted();
       run("docker", ["exec", "-it", CONTAINER, "/bin/bash"]);
@@ -561,7 +649,7 @@ async function main() {
       if (server && !localMode) {
         console.log(`Server mode active (${server}).`);
         console.log("请在小程序端刷新绑定码，当前服务端不开放本地刷新接口。");
-        console.log(`可使用本地模式测试: npx @winmarwuran/local-cli code-refresh --user-id ${userId} --local true --ttl ${ttl}`);
+        console.log(`可使用本地模式测试: npx @wuran/local-cli code-refresh --user-id ${userId} --local true --ttl ${ttl}`);
         return;
       }
       runAgentTask(["code-refresh", "--user-id", userId, "--ttl", ttl]);
@@ -610,7 +698,10 @@ async function main() {
         console.log(`Bind Code: ${data.bindCode || payload.bindCode}`);
         console.log(`Server: ${server}`);
         console.log(`Local bridge pid: ${bridgePid}`);
-        console.log("下一步: 运行 npx @winmarwuran/local-cli console 进入容器管理后台。");
+        console.log("下一步: 运行 npx @wuran/local-cli console 进入容器管理后台。");
+        console.log(
+          "若 agent list 缺少 Team Type 列: 在本仓库执行 install-dev（或 setup 后再 install-dev）。"
+        );
         return;
       }
       const args = ["bind", "--code", code];
@@ -761,13 +852,20 @@ async function runBridgeLoop(server, token, userId) {
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime
 request = sys.argv[1]
 team_name = sys.argv[2]
 workflow_type = sys.argv[3]
 test_command = sys.argv[4]
 task_id = sys.argv[5]
-safe_task_id = "".join(ch for ch in task_id if ch.isalnum() or ch in ("-", "_"))[:64] or "task"
-project_dir = Path(f"/root/.anaagent/environments/{team_name}/workspace/projects/{safe_task_id}")
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+base_name = f"run_{timestamp}"
+projects_root = Path(f"/root/.anaagent/environments/{team_name}/workspace/projects")
+project_dir = projects_root / base_name
+suffix = 1
+while project_dir.exists():
+    project_dir = projects_root / f"{base_name}_{suffix:02d}"
+    suffix += 1
 project_dir.mkdir(parents=True, exist_ok=True)
 cmd = [
     "agent",
@@ -776,6 +874,8 @@ cmd = [
     request,
     "--team",
     team_name,
+    "--workflow-type",
+    workflow_type,
     "--test-command",
     test_command,
     "--project-dir",
@@ -874,24 +974,34 @@ sys.exit(proc.returncode)
     }
   };
 
-  const createLocalTeamIfNeeded = (teamName, description) => {
+  const createLocalTeamIfNeeded = (teamName, description, teamType = "software_dev") => {
     ensureContainerStarted();
     const py = `
 import json
 import sys
 from pathlib import Path
 from anaagent.environment import create_environment
-from anaagent.config_manager import get_base_config
+from anaagent.config_manager import get_base_config, normalize_team_type, update_team_claude_config_for_team
 
 name = sys.argv[1].strip()
 description = sys.argv[2]
+raw_tt = sys.argv[3].strip() if len(sys.argv) > 3 else "software_dev"
+canonical_tt = normalize_team_type(raw_tt)
 if not name:
     print(json.dumps({"ok": False, "reason": "empty_name"}))
     sys.exit(0)
 
 team_dir = Path('/root/.anaagent/environments') / name
+# 目录已存在时旧逻辑会直接跳过，导致 team.yaml 仍是 software_dev（小程序常见：先占位再同步）
 if team_dir.exists():
-    print(json.dumps({"ok": True, "created": False, "name": name}))
+    upd = update_team_claude_config_for_team(name, team_type=canonical_tt)
+    print(json.dumps({
+        "ok": bool(upd.success),
+        "created": False,
+        "name": name,
+        "team_type": canonical_tt,
+        "type_align_msg": upd.message or "",
+    }))
     sys.exit(0)
 
 base = get_base_config() or {}
@@ -901,13 +1011,15 @@ result = create_environment(
     auth_token=str(base.get("anthropic_auth_token", "") or ""),
     base_url=str(base.get("anthropic_base_url", "") or ""),
     model=str(base.get("anthropic_model", "") or ""),
+    team_type=canonical_tt,
 )
 if result.success:
-    print(json.dumps({"ok": True, "created": True, "name": name}))
+    print(json.dumps({"ok": True, "created": True, "name": name, "team_type": canonical_tt}))
 else:
     print(json.dumps({"ok": False, "created": False, "name": name, "reason": result.message or "create_failed"}))
 `;
-    const out = capture("docker", ["exec", "-i", CONTAINER, "python", "-c", py, teamName, description || ""]);
+    const typeArg = String(teamType || "software_dev").trim();
+    const out = capture("docker", ["exec", "-i", CONTAINER, "python", "-c", py, teamName, description || "", typeArg]);
     if (out.status !== 0) {
       return { ok: false, created: false, name: teamName, reason: out.stderr || out.stdout || "docker_exec_failed" };
     }
@@ -915,6 +1027,39 @@ else:
       return JSON.parse(out.stdout || "{}");
     } catch {
       return { ok: false, created: false, name: teamName, reason: out.stdout || "invalid_json" };
+    }
+  };
+
+  const deleteLocalTeamIfNeeded = (teamName) => {
+    ensureContainerStarted();
+    const raw = String(teamName || "").trim();
+    if (!raw) {
+      return { ok: false, name: "", reason: "empty_name" };
+    }
+    const py = `
+import json
+import sys
+from anaagent.environment import remove_environment
+
+name = sys.argv[1].strip()
+if not name:
+    print(json.dumps({"ok": False, "reason": "empty_name"}))
+    sys.exit(0)
+result = remove_environment(name)
+print(json.dumps({
+    "ok": bool(result.success),
+    "name": name,
+    "reason": str(result.message or "")
+}))
+`;
+    const out = capture("docker", ["exec", "-i", CONTAINER, "python", "-c", py, raw]);
+    if (out.status !== 0) {
+      return { ok: false, name: raw, reason: out.stderr || out.stdout || "docker_exec_failed" };
+    }
+    try {
+      return JSON.parse(out.stdout || "{}");
+    } catch {
+      return { ok: false, name: raw, reason: out.stdout || "invalid_json" };
     }
   };
 
@@ -934,7 +1079,8 @@ else:
         const name = String(item?.name || "").trim();
         if (!name) continue;
         const description = String(item?.description || "");
-        const createRes = createLocalTeamIfNeeded(name, description);
+        const pendingTeamType = pickPendingTeamType(item);
+        const createRes = createLocalTeamIfNeeded(name, description, pendingTeamType);
         const teamId = `team_${name}`;
         sendJson({
           type: "team_created",
@@ -999,6 +1145,38 @@ else:
       if (message?.type === "create_team") {
         void syncPendingTeamsToLocal();
       }
+      if (message?.type === "team_config_update") {
+        try {
+          applyTeamConfigToDocker(message.payload || {});
+        } catch (e) {
+          console.warn("team_config_update failed:", e?.message || e);
+        }
+      }
+      if (message?.type === "request_delete_team") {
+        const pl = message.payload || {};
+        const teamName = String(pl.teamName || "").trim();
+        const teamId = String(pl.teamId || (teamName ? `team_${teamName}` : "")).trim();
+        if (!teamName) {
+          return;
+        }
+        void (async () => {
+          deleteLocalTeamIfNeeded(teamName);
+          try {
+            await syncTeamsToServer();
+          } catch {
+            // ignore
+          }
+          sendJson({
+            type: "delete_team",
+            messageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            timestamp: Date.now(),
+            payload: {
+              teamId,
+              teamName
+            }
+          });
+        })();
+      }
     };
 
     ws.onerror = () => {
@@ -1038,15 +1216,52 @@ else:
   });
 }
 
+function applyTeamConfigToDocker(payload) {
+  const teamName = String(payload?.teamName || "").trim();
+  if (!teamName) return;
+  ensureContainerStarted();
+  const ttRaw =
+    payload?.teamType ??
+    payload?.team_type ??
+    "";
+  const cfg = {
+    name: teamName,
+    anthropicAuthToken: payload?.anthropicAuthToken ?? "",
+    anthropicBaseUrl: payload?.anthropicBaseUrl ?? "",
+    anthropicModel: payload?.anthropicModel ?? "",
+    teamType: ttRaw,
+    team_type: ttRaw
+  };
+  const py = `
+import json
+import sys
+from anaagent.config_manager import update_team_claude_config_for_team
+raw = sys.argv[1]
+cfg = json.loads(raw)
+name = str(cfg.get("name") or "").strip()
+token = cfg.get("anthropicAuthToken")
+url = cfg.get("anthropicBaseUrl")
+model = cfg.get("anthropicModel")
+tt = str(cfg.get("teamType") or cfg.get("team_type") or "").strip()
+if not name:
+    print(json.dumps({"success": False, "reason": "empty_name"}))
+else:
+    r = update_team_claude_config_for_team(
+        name,
+        auth_token=token if token is not None else None,
+        base_url=url if url is not None else None,
+        model=model if model is not None else None,
+        team_type=tt if tt else None,
+    )
+    print(json.dumps({"success": bool(r.success), "message": getattr(r, "message", "")}))
+`;
+  capture("docker", ["exec", "-i", CONTAINER, "python", "-c", py, JSON.stringify(cfg)]);
+}
+
 function applySettingsToDocker(anthropicAuthToken, anthropicBaseUrl, anthropicModel) {
   const script = `
 import json
 from pathlib import Path
-import glob
-try:
-    import yaml
-except Exception:
-    yaml = None
 
 token = ${JSON.stringify(anthropicAuthToken)}
 base_url = ${JSON.stringify(anthropicBaseUrl)}
@@ -1066,34 +1281,6 @@ base_cfg['anthropic_auth_token'] = token
 base_cfg['anthropic_base_url'] = base_url
 base_cfg['anthropic_model'] = model
 base_cfg_path.write_text(json.dumps(base_cfg, ensure_ascii=False, indent=2), encoding='utf-8')
-
-for env_path in glob.glob('/root/.anaagent/environments/*'):
-    env_dir = Path(env_path)
-    settings_path = env_dir / '.claude' / 'settings.json'
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings = {}
-    if settings_path.exists():
-        try:
-            settings = json.loads(settings_path.read_text(encoding='utf-8') or '{}')
-        except Exception:
-            settings = {}
-    env = settings.get('env', {})
-    env['ANTHROPIC_AUTH_TOKEN'] = token
-    env['ANTHROPIC_BASE_URL'] = base_url
-    env['ANTHROPIC_MODEL'] = model
-    settings['env'] = env
-    settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding='utf-8')
-
-    team_yaml = env_dir / 'team.yaml'
-    if yaml is not None and team_yaml.exists():
-        try:
-            data = yaml.safe_load(team_yaml.read_text(encoding='utf-8')) or {}
-        except Exception:
-            data = {}
-        data['anthropic_auth_token'] = token
-        data['anthropic_base_url'] = base_url
-        data['anthropic_model'] = model
-        team_yaml.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding='utf-8')
 `;
 
   capture("docker", ["exec", "-i", CONTAINER, "python", "-c", script]);

@@ -232,6 +232,21 @@ agent memory recall "query"   # Search memory
     return context
 
 
+def sync_team_context_for_path(team_path: Path) -> bool:
+    """为指定团队目录同步 CLAUDE.md（不依赖当前激活环境）。"""
+    try:
+        context = generate_team_context(team_path)
+        claude_md_path = team_path / "CLAUDE.md"
+        claude_md_path.write_text(context, encoding="utf-8")
+        projects_dir = team_path / "workspace" / "projects"
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        (projects_dir / "CLAUDE.md").write_text(context, encoding="utf-8")
+        return True
+    except Exception as e:
+        print(f"Error syncing team context: {e}")
+        return False
+
+
 def sync_team_context() -> bool:
     """同步团队上下文文件"""
     from anaagent.environment import get_current_environment
@@ -239,22 +254,4 @@ def sync_team_context() -> bool:
     team_path = get_current_environment()
     if not team_path:
         return False
-
-    try:
-        # 生成上下文
-        context = generate_team_context(team_path)
-
-        # 写入CLAUDE.md到团队根目录
-        claude_md_path = team_path / "CLAUDE.md"
-        claude_md_path.write_text(context, encoding="utf-8")
-
-        # 也写入到workspace/projects目录
-        projects_dir = team_path / "workspace" / "projects"
-        projects_dir.mkdir(parents=True, exist_ok=True)
-        workspace_claude_md = projects_dir / "CLAUDE.md"
-        workspace_claude_md.write_text(context, encoding="utf-8")
-
-        return True
-    except Exception as e:
-        print(f"Error syncing team context: {e}")
-        return False
+    return sync_team_context_for_path(team_path)

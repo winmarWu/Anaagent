@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 KEY_FILE_PATTERNS = [
     "README.md",
@@ -20,7 +21,7 @@ def build_workspace_context(
     max_files: int = 80,
     tree_depth: int = 3,
     max_file_excerpt_chars: int = 1200,
-) -> dict:
+) -> dict[str, Any]:
     workspace = Path(workspace_dir).expanduser().resolve()
     workspace.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +49,7 @@ def build_workspace_context(
     }
 
 
-def format_workspace_context(context: dict) -> str:
+def format_workspace_context(context: dict[str, Any]) -> str:
     tree_text = "\n".join(context.get("tree_lines", [])) or "(empty workspace)"
     file_text = "\n".join(f"- {p}" for p in context.get("key_files", [])) or "- (none)"
     excerpt_blocks = []

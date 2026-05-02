@@ -589,6 +589,47 @@ def check_usage_limit(limit_tokens: int) -> tuple[bool, int]:
     return used >= limit_tokens, used
 
 
+def get_global_usage_totals() -> dict:
+    """全局累计：总 token、总费用、总调用次数（来自 global_usage）。"""
+    global_db_path = get_global_db_path()
+    if not global_db_path.exists():
+        return {"total_tokens": 0, "total_cost": 0.0, "api_calls": 0}
+    conn = sqlite3.connect(str(global_db_path))
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            COALESCE(SUM(total_tokens), 0),
+            COALESCE(SUM(cost), 0),
+            COUNT(*)
+        FROM global_usage
+        """
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return {"total_tokens": 0, "total_cost": 0.0, "api_calls": 0}
+    return {
+        "total_tokens": int(row[0] or 0),
+        "total_cost": round(float(row[1] or 0), 4),
+        "api_calls": int(row[2] or 0),
+    }
+
+
+def get_dashboard_summary() -> dict:
+    """首页/仪表盘：今日与累计统计。"""
+    today = get_daily_usage()
+    totals = get_global_usage_totals()
+    return {
+        "today": {
+            "total_tokens": today.get("total_tokens", 0),
+            "total_cost": today.get("total_cost", 0.0),
+            "api_calls": today.get("record_count", 0),
+        },
+        "all_time": totals,
+    }
+
+
 def get_usage_report() -> str:
     """生成使用报告"""
     today = get_daily_usage()

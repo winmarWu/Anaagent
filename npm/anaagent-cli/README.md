@@ -1,4 +1,4 @@
-# @winmarwuran/local-cli
+# @wuran/local-cli
 
 Anaagent 的本地 Docker 连接器 CLI，用于实现：
 
@@ -9,21 +9,35 @@ Anaagent 的本地 Docker 连接器 CLI，用于实现：
 ## Quick Start
 
 ```bash
-npx @winmarwuran/local-cli setup
+npx @wuran/local-cli setup
 ```
+
+若希望容器内的 `agent` 与当前 Anaagent 源码一致（例如 `agent list` 含 **Team Type** 列、最新的 `team_type` 规范化），在**本仓库根目录与 `npm/anaagent-cli` 的相对位置不变**的前提下执行一次：
+
+```bash
+npx @wuran/local-cli install-dev
+```
+
+源码不在默认相对路径时：
+
+```bash
+npx @wuran/local-cli install-dev --src D:/path/to/Anaagent
+```
+
+**说明：** 每次 `setup` 若重建了容器，需要重新执行 `install-dev`。官方镜像自带的 `anaagent` 不会自动包含你 Git 里未发布的改动。
 
 ## 绑定流程
 
 ```bash
 # 1) 小程序刷新后拿到绑定码 A1B2C3（由你们现有服务完成）
 # 2) 本地一行命令完成连接
-npx @winmarwuran/local-cli connect --code A1B2C3
+npx @wuran/local-cli connect --code A1B2C3
 
 # 3) 查询状态（会显示 LocalClient 在线数）
-npx @winmarwuran/local-cli status
+npx @wuran/local-cli status
 
 # 4) 打开容器管理后台（可选）
-npx @winmarwuran/local-cli console
+npx @wuran/local-cli console
 ```
 
 `connect` 成功后会自动启动本地 WebSocket 中转守护进程，无需再手动运行 `client-v4.js`。
@@ -34,12 +48,13 @@ npx @winmarwuran/local-cli console
 ```bash
 # PowerShell
 $env:ANAAGENT_BIND_SERVER="https://api.example.com"
-npx @winmarwuran/local-cli connect --code A1B2C3
+npx @wuran/local-cli connect --code A1B2C3
 ```
 
 ## Commands
 
 - `setup` - 一行完成拉镜像、创建 volume、启动容器
+- `install-dev [--src PATH]` - 将宿主机 Anaagent 拷入容器并 `pip install -e`（与仓库 CLI 行为一致）
 - `init` - 拉取镜像并创建 volume/workspace
 - `start` - 启动本地容器
 - `connect --code CODE [--server URL]` - 按绑定码连接小程序账户

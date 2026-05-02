@@ -193,6 +193,20 @@ class TestConfigManager:
         value = get_setting("test_key")
         assert value == "test_value"
 
+    def test_normalize_team_type(self):
+        from anaagent.config_manager import normalize_team_type
+
+        assert normalize_team_type(None) == "software_dev"
+        assert normalize_team_type("") == "software_dev"
+        assert normalize_team_type("research") == "research_assistant"
+        assert normalize_team_type("article") == "article_writing"
+        assert normalize_team_type("software_dev") == "software_dev"
+        assert normalize_team_type("bogus") == "software_dev"
+        assert normalize_team_type("文章撰写") == "article_writing"
+        assert normalize_team_type("软件开发") == "software_dev"
+        assert normalize_team_type("科研辅助") == "research_assistant"
+        assert normalize_team_type("Article Writing") == "article_writing"
+
 
 class TestMemoryManager:
     """记忆管理测试"""

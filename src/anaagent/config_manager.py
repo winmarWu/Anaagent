@@ -276,3 +276,116 @@ def get_all_settings() -> dict:
     if not config:
         return {}
     return config.get("settings", {})
+
+
+# ============================================
+# 按团队名更新配置（不依赖当前激活环境，供 Task API / 小程序）
+# ============================================
+
+VALID_TEAM_TYPES = frozenset({"software_dev", "article_writing", "research_assistant"})
+
+
+def normalize_team_type(value: Optional[str]) -> str:
+    """
+    将 CLI / 表单输入统一为 team.yaml 使用的 canonical 键。
+    支持简写：software/dev/sw、article/writing、research/science；
+    支持小程序/UI 中文：软件开发、文章撰写、科研辅助；
+    无法识别时回退为 software_dev。
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return "software_dev"
+    raw = str(value).strip()
+    # 中文与常见 UI 文案（须先于 lower，避免破坏汉字匹配）
+    zh_or_ui: dict[str, str] = {
+        "软件开发": "software_dev",
+        "软件": "software_dev",
+        "文章撰写": "article_writing",
+        "文章": "article_writing",
+        "科研辅助": "research_assistant",
+        "科研": "research_assistant",
+        "software development": "software_dev",
+        "article writing": "article_writing",
+        "research assistant": "research_assistant",
+    }
+    key_ui = raw.lower() if raw.isascii() else raw
+    if raw in zh_or_ui:
+        return zh_or_ui[raw]
+    if key_ui in zh_or_ui:
+        return zh_or_ui[key_ui]
+
+    s = raw.lower().replace("-", "_")
+    aliases: dict[str, str] = {
+        "software": "software_dev",
+        "dev": "software_dev",
+        "sw": "software_dev",
+        "swe": "software_dev",
+        "article": "article_writing",
+        "writing": "article_writing",
+        "articlewriting": "article_writing",
+        "research": "research_assistant",
+        "science": "research_assistant",
+        "sci": "research_assistant",
+    }
+    if s in aliases:
+        s = aliases[s]
+    if s in VALID_TEAM_TYPES:
+        return s
+    return "software_dev"
+
+
+def load_team_yaml_dict(team_name: str) -> Optional[dict]:
+    """读取指定团队的 team.yaml（原始 dict）。"""
+    from anaagent.environment import get_envs_dir
+
+    path = get_envs_dir() / team_name / "team.yaml"
+    if not path.exists():
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return None
+
+
+def update_team_claude_config_for_team(
+    team_name: str,
+    auth_token: Optional[str] = None,
+    base_url: Optional[str] = None,
+    model: Optional[str] = None,
+    team_type: Optional[str] = None,
+) -> OperationResult:
+    """更新指定团队的 Claude/API 配置（等价于在该团队目录下执行 config set-team）。"""
+    from anaagent.environment import get_envs_dir
+    from anaagent.team_context import sync_team_context_for_path
+
+    env_path = get_envs_dir() / team_name
+    if not env_path.exists():
+        return OperationResult(success=False, message=f"团队不存在: {team_name}")
+
+    team_yaml_path = env_path / "team.yaml"
+    if team_yaml_path.exists():
+        with open(team_yaml_path, encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+    else:
+        config = {"name": team_name}
+
+    if auth_token is not None:
+        config["anthropic_auth_token"] = auth_token
+    if base_url is not None:
+        config["anthropic_base_url"] = base_url
+    if model is not None:
+        config["anthropic_model"] = model
+    if team_type is not None:
+        config["team_type"] = normalize_team_type(team_type)
+
+    with open(team_yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
+
+    final_token = str(config.get("anthropic_auth_token", "") or "")
+    final_url = str(config.get("anthropic_base_url", "https://api.anthropic.com") or "")
+    final_model = str(config.get("anthropic_model", "claude-sonnet-4-6") or "")
+    result = generate_claude_config(env_path, final_token, final_url, final_model)
+    if not result.success:
+        return result
+    sync_team_context_for_path(env_path)
+    return OperationResult(success=True)

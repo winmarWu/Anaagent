@@ -98,3 +98,39 @@ def test_tasks_reject_non_integer_max_retries(api_base_url: str):
     )
     assert status == 400
     assert body["error"] == "max_retries must be an integer"
+
+
+def test_stats_summary_and_recent_and_meta(api_base_url: str):
+    summary_status, summary_body = _request_json(
+        "GET",
+        f"{api_base_url}/api/v1/stats/summary",
+    )
+    assert summary_status == 200
+    assert "today" in summary_body
+    assert "all_time" in summary_body
+
+    recent_status, recent_body = _request_json(
+        "GET",
+        f"{api_base_url}/api/v1/stats/recent-workflows?limit=5",
+    )
+    assert recent_status == 200
+    assert "items" in recent_body
+
+    wf_status, wf_body = _request_json(
+        "GET",
+        f"{api_base_url}/api/v1/meta/workflow-types",
+    )
+    assert wf_status == 200
+    assert wf_body["ok"] is True
+    names = {w["name"] for w in wf_body["workflows"]}
+    assert "article_pipeline" in names
+    assert "article_direct" in names
+    assert "research_pipeline" in names
+    assert "research_requirements" in names
+
+    tt_status, tt_body = _request_json(
+        "GET",
+        f"{api_base_url}/api/v1/meta/team-types",
+    )
+    assert tt_status == 200
+    assert "software_dev" in tt_body["team_types"]

@@ -11,6 +11,16 @@ from langgraph.graph import END, StateGraph
 from anaagent.config_manager import get_base_config
 from anaagent.environment import get_envs_dir
 from anaagent.workflow.notifier import send_webhook_notification
+from anaagent.workflow.content_workflow_nodes import (
+    article_direct_write_node,
+    article_outline_node,
+    article_polish_node,
+    article_write_node,
+    research_plan_node,
+    research_report_node,
+    research_requirements_report_node,
+    research_synthesize_node,
+)
 from anaagent.workflow.nodes import dev_node, pm_node, review_node, test_node
 from anaagent.workflow.run_logger import write_workflow_log
 from anaagent.workflow.state import WorkflowStage, WorkflowState, create_initial_state
@@ -86,6 +96,50 @@ def create_simple_dev_workflow() -> StateGraph:
     return workflow
 
 
+def create_article_pipeline_workflow() -> StateGraph:
+    """文章：大纲 -> 写作 -> 润色"""
+    workflow = StateGraph(WorkflowState)
+    workflow.add_node("outline", article_outline_node)
+    workflow.add_node("write", article_write_node)
+    workflow.add_node("polish", article_polish_node)
+    workflow.set_entry_point("outline")
+    workflow.add_edge("outline", "write")
+    workflow.add_edge("write", "polish")
+    workflow.add_edge("polish", END)
+    return workflow
+
+
+def create_research_pipeline_workflow() -> StateGraph:
+    """科研：规划 -> 综合 -> 报告"""
+    workflow = StateGraph(WorkflowState)
+    workflow.add_node("plan", research_plan_node)
+    workflow.add_node("synthesize", research_synthesize_node)
+    workflow.add_node("report", research_report_node)
+    workflow.set_entry_point("plan")
+    workflow.add_edge("plan", "synthesize")
+    workflow.add_edge("synthesize", "report")
+    workflow.add_edge("report", END)
+    return workflow
+
+
+def create_article_direct_workflow() -> StateGraph:
+    """文章：单步直接成文（无大纲、无独立润色节点）。"""
+    workflow = StateGraph(WorkflowState)
+    workflow.add_node("direct_write", article_direct_write_node)
+    workflow.set_entry_point("direct_write")
+    workflow.add_edge("direct_write", END)
+    return workflow
+
+
+def create_research_requirements_workflow() -> StateGraph:
+    """科研：单步需求分析报告。"""
+    workflow = StateGraph(WorkflowState)
+    workflow.add_node("requirements", research_requirements_report_node)
+    workflow.set_entry_point("requirements")
+    workflow.add_edge("requirements", END)
+    return workflow
+
+
 def create_review_only_workflow() -> StateGraph:
     """
     仅审查流：Review -> END（适合已在 task_description / 状态中提供代码上下文的场景）
@@ -116,6 +170,30 @@ WORKFLOW_TYPES = {
         "description": "已有代码，仅进行审查：Review",
         "nodes": ["review"],
         "create": create_review_only_workflow,
+    },
+    "article_pipeline": {
+        "name": "文章撰写管线",
+        "description": "大纲 -> 写作 -> 润色",
+        "nodes": ["outline", "write", "polish"],
+        "create": create_article_pipeline_workflow,
+    },
+    "research_pipeline": {
+        "name": "科研辅助管线",
+        "description": "研究规划 -> 证据综合 -> 报告",
+        "nodes": ["plan", "synthesize", "report"],
+        "create": create_research_pipeline_workflow,
+    },
+    "article_direct": {
+        "name": "文章 · 直接撰写",
+        "description": "一步生成正文（跳过大纲与润色）",
+        "nodes": ["direct_write"],
+        "create": create_article_direct_workflow,
+    },
+    "research_requirements": {
+        "name": "科研 · 需求分析报告",
+        "description": "一步输出结构化需求分析",
+        "nodes": ["requirements"],
+        "create": create_research_requirements_workflow,
     },
 }
 

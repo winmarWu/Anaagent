@@ -50,16 +50,16 @@ agent --help
 
 ```bash
 # 一行创建本地 docker 环境并启动容器
-npx @winmarwuran/local-cli setup
+npx @wuran/local-cli setup
 
 # 小程序刷新后拿到绑定码（例如 A1B2C3），本地一行连接
-npx @winmarwuran/local-cli connect --code A1B2C3
+npx @wuran/local-cli connect --code A1B2C3
 
 # 查询绑定状态（可选）
-npx @winmarwuran/local-cli status
+npx @wuran/local-cli status
 
 # 新终端进入本地管理后台（可选）
-npx @winmarwuran/local-cli console
+npx @wuran/local-cli console
 ```
 
 默认绑定服务地址：`https://www.winmar.top`。可用环境变量覆盖：

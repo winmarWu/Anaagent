@@ -34,10 +34,17 @@ console = Console()
 def create(
     name: str = typer.Argument(..., help="Team name"),
     description: str = typer.Option("", "-d", "--description", help="Team description"),
+    team_type: str = typer.Option(
+        "software_dev",
+        "-t",
+        "--team-type",
+        help="团队类型：software_dev | article_writing | research_assistant；"
+        "简写 software/dev、article、research（默认软件开发）",
+    ),
 ):
     """Create a new agent team (like: conda create -n name)"""
     from anaagent.environment import create_environment
-    from anaagent.config_manager import get_base_config, mask_token
+    from anaagent.config_manager import get_base_config, mask_token, normalize_team_type
 
     # 获取base默认配置
     base_config = get_base_config()
@@ -79,12 +86,14 @@ def create(
     if not model:
         model = default_model
 
+    tt = normalize_team_type(team_type)
     # 创建团队
-    result = create_environment(name, description, token, url, model)
+    result = create_environment(name, description, token, url, model, team_type=tt)
     if result.success:
         console.print(f"\n[green]OK[/green] Team '{name}' created")
         console.print(f"  Path: {result.path}")
         console.print(f"  Model: {model}")
+        console.print(f"  Team type: [cyan]{tt}[/cyan] (in team.yaml + MEMORY.md)")
         console.print(f"\n  To activate: [cyan]agent activate {name}[/cyan]")
     else:
         console.print(f"[red]ERROR[/red] {result.message}")
@@ -189,13 +198,20 @@ def list_teams():
 
     table = Table(title="Agent Teams")
     table.add_column("Name", style="cyan")
+    table.add_column("Team Type", style="magenta")
     table.add_column("Status", style="green")
     table.add_column("Created", style="dim")
     table.add_column("Description", style="dim")
 
     for env in envs:
         status = "[green]* active[/green]" if env.active else "  inactive"
-        table.add_row(env.name, status, env.created_at, env.description or "-")
+        table.add_row(
+            env.name,
+            env.team_type or "software_dev",
+            status,
+            env.created_at,
+            env.description or "-",
+        )
 
     console.print(table)
 
@@ -1056,6 +1072,12 @@ app.add_typer(workflow_app, name="workflow")
 def workflow_run(
     request: str = typer.Argument(..., help="User request to process"),
     team: str = typer.Option(None, "-t", "--team", help="Team name (uses active team if not specified)"),
+    workflow_type: str = typer.Option(
+        "software_company",
+        "-w",
+        "--workflow-type",
+        help="Workflow key (see: agent workflow list)",
+    ),
     project_dir: str = typer.Option(
         "",
         "--project-dir",
@@ -1087,6 +1109,7 @@ def workflow_run(
 
     console.print(f"\n[bold cyan]Starting Multi-Agent Workflow[/bold cyan]")
     console.print(f"  Team: {team_name or '(default)'}")
+    console.print(f"  Workflow type: {workflow_type}")
     console.print(f"  Workspace: {workspace_dir}")
     console.print(f"  Test command: {test_command}")
     console.print(f"  Request: {request[:50]}{'...' if len(request) > 50 else ''}")
@@ -1100,6 +1123,7 @@ def workflow_run(
                 workspace_dir=workspace_dir,
                 webhook_url=webhook_url,
                 test_command=test_command,
+                workflow_type=workflow_type,
             )
         except Exception as e:
             console.print(f"[red]ERROR[/red] Workflow failed: {e}")

@@ -57,3 +57,10 @@ workspace/
 
 # Test files
 test_commands.bat
+
+# Local/private notes (not for GitHub)
+必须记忆.md
+执行步骤.md
+
+# Windows artifact (reserved name; accidental creation)
+nul
