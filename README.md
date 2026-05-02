@@ -13,6 +13,33 @@ Anaagent 是一个 AI Agent 团队管理平台，灵感来自于 Anaconda/Conda 
 - **Docker 支持** - 一键部署到 Docker 容器，开箱即用
 - **灵活配置** - 支持自定义 API Key、Base URL、模型
 
+## 新设备完整流程
+
+在一台**从未配置过**的设备上，从零接上 Anaagent（本地 Docker + 微信小程序绑定），建议严格按顺序执行：
+
+**前置条件：** 已安装 [Node.js](https://nodejs.org/) 与 [Docker](https://docs.docker.com/get-docker/)，本机可正常执行 `docker pull`（如需请先 `docker login`）。
+
+```bash
+# 1）安装本地连接器 CLI（可选；跳过则全程使用 npx，无需全局安装）
+npm install -g @wuran/local-cli@latest
+
+# 2）拉取镜像并启动本地容器
+npx @wuran/local-cli setup
+
+# 3）在微信小程序中刷新页面获取绑定码后执行（将下方替换为实际验证码）
+npx @wuran/local-cli connect --code 绑定码
+
+# 4）进入容器终端，使用 agent / Claude 等（可选）
+npx @wuran/local-cli console
+```
+
+说明：
+
+- 步骤 1 若省略，可直接运行步骤 2–4 中的 `npx @wuran/local-cli ...`。
+- **绑定码**由小程序页面刷新后展示；`connect` 成功后会自动拉起本地 WebSocket 中转，并把小程序里保存的 **API Key / Base URL / Model** 同步到容器。
+- **默认绑定服务**为 `https://www.winmar.top`，可用环境变量 `ANAAGENT_BIND_SERVER` 指向其它中转地址（例如 PowerShell：`$env:ANAAGENT_BIND_SERVER="https://api.example.com"`）。
+- Windows 若 `npm install -g` 报 **EPERM**（无法写入 `Program Files` 下全局目录），可将 npm 全局前缀改到用户目录（如 `npm config set prefix "%APPDATA%\npm"` 并把该路径加入 `PATH`），或**不要全局安装**，仅用上面的 `npx` 命令。
+
 ## 快速开始
 
 ### 方式一：Docker 部署（推荐）
@@ -48,17 +75,19 @@ agent --help
 
 ### 方式三：npm 一行命令连接本地 Docker（小程序绑定）
 
+**从零开始的推荐顺序**见上文 **[新设备完整流程]**。日常可单独使用下列命令：
+
 ```bash
-# 一行创建本地 docker 环境并启动容器
+# 创建/启动本地 docker 环境
 npx @wuran/local-cli setup
 
-# 小程序刷新后拿到绑定码（例如 A1B2C3），本地一行连接
+# 小程序刷新后拿到绑定码（例如 A1B2C3），本地连接
 npx @wuran/local-cli connect --code A1B2C3
 
 # 查询绑定状态（可选）
 npx @wuran/local-cli status
 
-# 新终端进入本地管理后台（可选）
+# 进入本地管理后台 / 容器 shell（可选）
 npx @wuran/local-cli console
 ```
 
