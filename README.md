@@ -92,16 +92,6 @@ npx @wuran/local-cli status
 npx @wuran/local-cli console
 ```
 
-默认绑定服务地址：`https://www.winmar.top`。可用环境变量覆盖：
-
-```bash
-# PowerShell
-$env:ANAAGENT_BIND_SERVER="https://api.example.com"
-```
-
-说明：`connect` 成功后会自动拉起本地 WebSocket 中转，无需额外执行 `client-v4.js start`。
-同时会自动同步小程序端保存的 `API Key / Base URL / Model` 到本地容器配置。
-
 ## 基本使用
 
 ### 团队管理
