@@ -73,11 +73,12 @@ pip install -e .
 agent --help
 ```
 
-### 方式三：npm 一行命令连接本地 Docker（小程序绑定）
+### 方式三：npm 部署本地连接器（Docker + 小程序绑定）
 
-**从零开始的推荐顺序**见上文 **[新设备完整流程]**。日常可单独使用下列命令：
+**从零开始的推荐顺序**见上文 **[新设备完整流程]**。下面为常用命令组合（含全局安装 `@wuran/local-cli`，亦可省略首行、全程使用 `npx`）：
 
 ```bash
+npm install -g @wuran/local-cli@latest
 # 创建/启动本地 docker 环境
 npx @wuran/local-cli setup
 
